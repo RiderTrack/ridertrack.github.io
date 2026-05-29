@@ -1,0 +1,2417 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Circuit Lite | Route Optimizer Test</title>
+    
+    <!-- CDNs de Dependencias -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- Configuración del Tema Tailwind -->
+    <script>
+        // --- 1. ESTADO DE LA APLICACIÓN ---
+        let appState = {
+            deliveries: [],
+            startAddress: 'Plaza Mayor, Cercado de Lima',
+            endAddress: 'Miraflores, Lima',
+            startCoord: { lat: -12.046374, lng: -77.042793 }, 
+            endCoord: { lat: -12.111058, lng: -77.031584 },   
+            currentTab: 'home',
+            gpsActive: false,
+            userLocation: null,
+            routeStats: { distance: 0, time: 0, fuel: 0, collections: 0 },
+            activeStatusFilter: 'all',
+            history: [] 
+        };
+
+        let map, routeLine, markersGroup;
+
+        // --- 2. PREPARACIÓN Y SPLASH SCREEN ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initSplash();
+            initTheme();
+        });
+
+        function initSplash() {
+            const progress = document.getElementById('splashProgress');
+            const message = document.getElementById('splashMessage');
+            const screen = document.getElementById('splashScreen');
+            
+            const steps = [
+                { p: 20, m: 'Cargando mapas interactivos...' },
+                { p: 40, m: 'Inicializando posicionamiento GPS...' },
+                { p: 60, m: 'Sincronizando memoria local...' },
+                { p: 80, m: 'Verificando motor heurístico...' },
+                { p: 100, m: '¡Listo para la ruta!' }
+            ];
+
+            let stepIdx = 0;
+            const interval = setInterval(() => {
+                if (stepIdx < steps.length) {
+                    progress.style.width = steps[stepIdx].p + '%';
+                    message.innerText = steps[stepIdx].m;
+                    stepIdx++;
+                } else {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        screen.classList.add('opacity-0');
+                        setTimeout(() => screen.remove(), 1000);
+                        initApp();
+                    }, 500);
+                }
+            }, 250);
+        }
+
+        // --- 3. INICIALIZACIÓN DE LA APLICACIÓN ---
+        function initApp() {
+            loadFromStorage();
+            initMap();
+            initGPS();
+            switchTab('home'); 
+            renderDeliveries();
+            calculateStats();
+            renderHistory();
+            triggerAssistantRandomTip();
+            // Auto-sync con RiderTrack
+            setTimeout(() => { syncRiderTrack(); }, 800);
+        }
+
+        // --- 4. TEMA CLARO/OSCURO ---
+        function initTheme() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('themeIcon').className = 'fa-solid fa-sun';
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('themeIcon').className = 'fa-solid fa-moon';
+            }
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.theme = 'light';
+                icon.className = 'fa-solid fa-moon';
+            } else {
+                html.classList.add('dark');
+                localStorage.theme = 'dark';
+                icon.className = 'fa-solid fa-sun';
+            }
+        }
+
+        // --- 5. CONTROLADOR DE MAPA ---
+        function initMap() {
+            map = L.map('map', {
+                zoomControl: false,
+                touchZoom: true
+            }).setView([appState.startCoord.lat, appState.startCoord.lng], 13);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OSM &copy; CARTO'
+            }).addTo(map);
+
+            markersGroup = L.layerGroup().addTo(map);
+            drawRouteOnMap();
+        }
+
+        function recenterMap() {
+            if (appState.startCoord) {
+                map.setView([appState.startCoord.lat, appState.startCoord.lng], 13);
+            }
+        }
+
+        // --- 6. GEOLOCALIZACIÓN Y GPS ---
+        function initGPS() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.watchPosition(
+                    (position) => {
+                        appState.gpsActive = true;
+                        appState.userLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        
+                        const speed = position.coords.speed ? Math.round(position.coords.speed * 3.6) : 0;
+                        document.getElementById('currentSpeed').innerText = speed;
+
+                        document.getElementById('gpsDot').className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+                        document.getElementById('gpsStatusText').innerText = "GPS Activo";
+                    },
+                    (error) => {
+                        console.warn("GPS desconectado:", error);
+                        appState.gpsActive = false;
+                        document.getElementById('gpsDot').className = "w-2 h-2 rounded-full bg-red-500";
+                        document.getElementById('gpsStatusText').innerText = "GPS Inactivo";
+                    },
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 1000 }
+                );
+            }
+        }
+
+        // --- 7. LOGÍSTICA Y ESTADÍSTICAS ---
+        function calculateStats() {
+            const totalDeliveries = appState.deliveries.length;
+            let totalAmount = 0;
+            let currentDistance = 0;
+
+            appState.deliveries.forEach(d => {
+                totalAmount += parseFloat(d.amount) || 0;
+            });
+
+            if (totalDeliveries > 0) {
+                let current = appState.startCoord;
+                appState.deliveries.forEach(dest => {
+                    if (dest.lat && dest.lng) {
+                        currentDistance += calculateHaversine(current, dest);
+                        current = dest;
+                    }
+                });
+                if (appState.endAddress && appState.endCoord) {
+                    currentDistance += calculateHaversine(current, appState.endCoord);
+                }
+            }
+
+            const correctedDistance = currentDistance * 1.3;
+            const speedKmH = 28;
+            const transitTimeHrs = correctedDistance / speedKmH;
+            const stopTimeHrs = (totalDeliveries * 5) / 60;
+            const totalHours = transitTimeHrs + stopTimeHrs;
+            const totalFuel = correctedDistance * 0.025;
+
+            appState.routeStats = {
+                distance: parseFloat(correctedDistance.toFixed(1)),
+                time: totalHours,
+                fuel: parseFloat(totalFuel.toFixed(1)),
+                collections: totalAmount
+            };
+
+            document.getElementById('statStops').innerText = totalDeliveries;
+            document.getElementById('statKm').innerHTML = `${appState.routeStats.distance} <span class="text-[9px] font-normal">km</span>`;
+            document.getElementById('statTime').innerText = formatHours(totalHours);
+            document.getElementById('statCash').innerText = `S/. ${totalAmount.toFixed(1)}`;
+            document.getElementById('statFuel').innerHTML = `${appState.routeStats.fuel} <span class="text-[9px] font-normal">L</span>`;
+        }
+
+        function calculateHaversine(coord1, coord2) {
+            const R = 6371;
+            const dLat = (coord2.lat - coord1.lat) * Math.PI / 180;
+            const dLng = (coord2.lng - coord1.lng) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(coord1.lat * Math.PI / 180) * Math.cos(coord2.lat * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function formatHours(hours) {
+            const h = Math.floor(hours);
+            const m = Math.round((hours - h) * 60);
+            return h > 0 ? `${h}h ${m}m` : `${m}m`;
+        }
+
+        // --- 8. MOTOR DE OPTIMIZACIÓN DE RUTA ---
+        async function geocodeAddress(address) {
+            if (!address || address.trim() === "") return null;
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address + ", Lima, Peru")}`);
+                const data = await response.json();
+                if (data && data.length > 0) {
+                    return {
+                        lat: parseFloat(data[0].lat),
+                        lng: parseFloat(data[0].lon)
+                    };
+                }
+            } catch (e) {
+                console.warn("Error geocodificando, aplicando fallback:", address);
+            }
+            return generateMockCoordinates(address);
+        }
+
+        function generateMockCoordinates(address) {
+            let hash = 0;
+            for (let i = 0; i < address.length; i++) {
+                hash = address.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const latOff = ((hash % 100) / 1000) * 0.08;
+            const lngOff = (((hash >> 4) % 100) / 1000) * 0.08;
+            return {
+                lat: -12.046374 + latOff,
+                lng: -77.042793 + lngOff
+            };
+        }
+
+        async function optimizeRoute() {
+            setAssistantMessage("🧠 Optimizando secuencias y calculando trayectorias...");
+            
+            const resolvedStart = await geocodeAddress(appState.startAddress);
+            if (resolvedStart) appState.startCoord = resolvedStart;
+
+            if (appState.endAddress) {
+                const resolvedEnd = await geocodeAddress(appState.endAddress);
+                if (resolvedEnd) appState.endCoord = resolvedEnd;
+            } else {
+                appState.endCoord = null;
+            }
+
+            let unvisited = [];
+            for (let item of appState.deliveries) {
+                if (!item.lat || !item.lng) {
+                    const coords = await geocodeAddress(`${item.address}, ${item.district}`);
+                    item.lat = coords.lat;
+                    item.lng = coords.lng;
+                }
+                unvisited.push(item);
+            }
+
+            let currentPoint = appState.startCoord;
+            let optimizedRoute = [];
+
+            while (unvisited.length > 0) {
+                let nearestIdx = -1;
+                let minDistance = Infinity;
+
+                for (let i = 0; i < unvisited.length; i++) {
+                    const dist = calculateHaversine(currentPoint, unvisited[i]);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        nearestIdx = i;
+                    }
+                }
+
+                if (nearestIdx !== -1) {
+                    const nearestNode = unvisited.splice(nearestIdx, 1)[0];
+                    optimizedRoute.push(nearestNode);
+                    currentPoint = nearestNode;
+                }
+            }
+
+            appState.deliveries = optimizedRoute;
+            saveToStorage();
+            renderDeliveries();
+            calculateStats();
+            drawRouteOnMap();
+
+            setAssistantMessage("🚀 ¡Ruta estructurada reduciendo recorridos duplicados!");
+        }
+
+        // --- 9. INTEGRACIÓN DE MAPA Y POLILÍNEAS ---
+        function drawRouteOnMap() {
+            if (!map) return;
+            markersGroup.clearLayers();
+
+            let latlngs = [];
+
+            if (appState.startCoord) {
+                latlngs.push([appState.startCoord.lat, appState.startCoord.lng]);
+                L.marker([appState.startCoord.lat, appState.startCoord.lng], {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold border-2 border-white shadow-md shadow-emerald-500/50"><i class="fa-solid fa-play text-[10px]"></i></div>`,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    })
+                }).addTo(markersGroup).bindPopup("<b>📍 Punto de Inicio:</b><br>" + appState.startAddress);
+            }
+
+            appState.deliveries.forEach((delivery, index) => {
+                if (delivery.lat && delivery.lng) {
+                    const pos = [delivery.lat, delivery.lng];
+                    latlngs.push(pos);
+
+                    let colorClass = "bg-brand-500 shadow-brand-500/50";
+                    if (delivery.status === 'entregado') colorClass = "bg-emerald-500 shadow-emerald-500/50";
+                    if (delivery.status === 'fallido') colorClass = "bg-rose-500 shadow-rose-500/50";
+                    if (delivery.status === 'no-contesta') colorClass = "bg-yellow-500 shadow-yellow-500/50";
+                    if (delivery.status === 'reprogramado') colorClass = "bg-violet-500 shadow-violet-500/50";
+
+                    L.marker(pos, {
+                        icon: L.divIcon({
+                            className: 'custom-div-icon',
+                            html: `<div class="w-7 h-7 rounded-full ${colorClass} text-white flex items-center justify-center font-black text-xs border-2 border-white shadow-lg">${index + 1}</div>`,
+                            iconSize: [28, 28],
+                            iconAnchor: [14, 14]
+                        })
+                    }).addTo(markersGroup).bindPopup(`<b>📦 Parada ${index + 1}:</b><br>${delivery.client}<br>${delivery.address}`);
+                }
+            });
+
+            if (appState.endCoord && appState.endAddress) {
+                const pos = [appState.endCoord.lat, appState.endCoord.lng];
+                latlngs.push(pos);
+                L.marker(pos, {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold border-2 border-white shadow-md"><i class="fa-solid fa-flag-checkered text-[10px]"></i></div>`,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    })
+                }).addTo(markersGroup).bindPopup("<b>🏠 Punto de Destino Final:</b><br>" + appState.endAddress);
+            }
+
+            if (routeLine) {
+                map.removeLayer(routeLine);
+            }
+
+            if (latlngs.length > 1) {
+                routeLine = L.polyline(latlngs, {
+                    color: '#4f46e5',
+                    weight: 4,
+                    opacity: 0.8,
+                    dashArray: '1, 6',
+                    lineJoin: 'round'
+                }).addTo(map);
+
+                map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+            }
+        }
+
+        // --- 10. GESTIÓN DE ENTREGAS (LISTADO, BÚSQUEDA Y FILTRADO) ---
+        function renderDeliveries() {
+            const container = document.getElementById('deliveriesContainer');
+            container.innerHTML = '';
+
+            const searchQuery = document.getElementById('searchQuery').value.toLowerCase().trim();
+            const filter = appState.activeStatusFilter;
+
+            const filteredList = appState.deliveries.filter((item) => {
+                const matchesSearch = item.client.toLowerCase().includes(searchQuery) || 
+                                      item.address.toLowerCase().includes(searchQuery) ||
+                                      item.district.toLowerCase().includes(searchQuery) ||
+                                      (item.reference && item.reference.toLowerCase().includes(searchQuery));
+
+                let matchesStatus = true;
+                if (filter === 'pendiente') {
+                    matchesStatus = item.status === 'pendiente';
+                } else if (filter === 'entregado') {
+                    matchesStatus = item.status === 'entregado';
+                } else if (filter === 'fallido') {
+                    matchesStatus = item.status === 'fallido';
+                } else if (filter === 'incidencias') {
+                    matchesStatus = ['no-contesta', 'reprogramado'].includes(item.status);
+                }
+
+                return matchesSearch && matchesStatus;
+            });
+
+            if (filteredList.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center p-8 text-center bg-white dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                        <i class="fa-solid fa-boxes-stacked text-3xl text-slate-300 dark:text-slate-700 mb-2"></i>
+                        <p class="text-xs text-slate-400 font-medium">No se encontraron entregas que coincidan.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            filteredList.forEach((item) => {
+                const originalIndex = appState.deliveries.indexOf(item);
+                const borderPriorityClass = item.priority === 'alta' ? 'border-l-4 border-l-amber-500' : 'border-l-4 border-l-slate-300 dark:border-l-slate-700';
+                
+                let statusBadge = '';
+                switch (item.status) {
+                    case 'pendiente':
+                        statusBadge = '<span class="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full font-bold">🟡 Pendiente</span>';
+                        break;
+                    case 'entregado':
+                        statusBadge = '<span class="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">🟢 Entregado</span>';
+                        break;
+                    case 'fallido':
+                        statusBadge = '<span class="text-[10px] bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-full font-bold">🔴 Fallido</span>';
+                        break;
+                    case 'no-contesta':
+                        statusBadge = '<span class="text-[10px] bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-2 py-0.5 rounded-full font-bold">📞 No contesta</span>';
+                        break;
+                    case 'reprogramado':
+                        statusBadge = '<span class="text-[10px] bg-violet-500/10 text-violet-600 dark:text-violet-400 px-2 py-0.5 rounded-full font-bold">🔄 Reprogramado</span>';
+                        break;
+                }
+
+                const card = document.createElement('div');
+                card.className = `bg-white dark:bg-slate-800/80 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-800/40 relative flex flex-col gap-2 ${borderPriorityClass}`;
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex gap-2 items-center">
+                            <span class="w-5 h-5 rounded-full bg-brand-500 text-white font-black text-[10px] flex items-center justify-center">${originalIndex + 1}</span>
+                            <h4 class="font-bold text-sm tracking-tight">${item.client}</h4>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            ${statusBadge}
+                            <select onchange="updateDeliveryStatus(${originalIndex}, this.value)" class="text-[11px] bg-slate-100 dark:bg-slate-700 p-1 rounded-md focus:outline-none max-w-[90px] text-slate-800 dark:text-slate-100">
+                                <option value="pendiente" ${item.status === 'pendiente' ? 'selected' : ''}>Pendiente</option>
+                                <option value="entregado" ${item.status === 'entregado' ? 'selected' : ''}>Entregado</option>
+                                <option value="fallido" ${item.status === 'fallido' ? 'selected' : ''}>Fallido</option>
+                                <option value="no-contesta" ${item.status === 'no-contesta' ? 'selected' : ''}>No contesta</option>
+                                <option value="reprogramado" ${item.status === 'reprogramado' ? 'selected' : ''}>Reprogramado</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="text-xs text-slate-500 dark:text-slate-400 flex flex-col gap-1 mt-1">
+                        <div class="flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-brand-500 shrink-0"></i> <span class="font-semibold">${item.address}, ${item.district}</span></div>
+                        ${item.reference ? `<div class="flex items-start gap-1.5 bg-slate-50 dark:bg-slate-900/40 p-2 rounded-lg border border-slate-100 dark:border-slate-800/30"><i class="fa-solid fa-info text-slate-400 shrink-0 mt-0.5"></i> <span class="text-[11px] font-medium leading-normal">${item.reference}</span></div>` : ''}
+                        <div class="flex items-center gap-3 mt-1 text-[11px]">
+                            ${item.phone ? `<span class="flex items-center gap-1"><i class="fa-solid fa-phone text-slate-400"></i> ${item.phone}</span>` : ''}
+                            ${item.amount ? `<span class="flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300"><i class="fa-solid fa-hand-holding-dollar text-emerald-500"></i> S/. ${item.amount}</span>` : ''}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between border-t border-slate-100 dark:border-slate-700/60 pt-2.5 mt-2">
+                        <div class="flex gap-1.5">
+                            <button onclick="moveUp(${originalIndex})" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 flex items-center justify-center active:scale-90 transition-transform"><i class="fa-solid fa-chevron-up text-xs"></i></button>
+                            <button onclick="moveDown(${originalIndex})" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 flex items-center justify-center active:scale-90 transition-transform"><i class="fa-solid fa-chevron-down text-xs"></i></button>
+                        </div>
+                        <div class="flex gap-1.5">
+                            <button onclick="editDelivery(${originalIndex})" class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center active:scale-90 transition-transform"><i class="fa-solid fa-pen text-xs"></i></button>
+                            <button onclick="deleteDelivery(${originalIndex})" class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center active:scale-90 transition-transform"><i class="fa-solid fa-trash text-xs"></i></button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function setStatusFilter(filter) {
+            appState.activeStatusFilter = filter;
+            const buttons = ['all', 'pendiente', 'entregado', 'fallido', 'incidencias'];
+            buttons.forEach(btn => {
+                const el = document.getElementById(`filterBtn_${btn}`);
+                if (btn === filter) {
+                    el.className = "px-3 py-1.5 rounded-full text-[10px] font-bold transition-all bg-brand-500 text-white";
+                } else {
+                    el.className = "px-3 py-1.5 rounded-full text-[10px] font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300";
+                }
+            });
+            renderDeliveries();
+        }
+
+        function applyFilters() {
+            renderDeliveries();
+        }
+
+        function updateStartEnd() {
+            appState.startAddress = document.getElementById('startAddress').value;
+            appState.endAddress = document.getElementById('endAddress').value;
+            saveToStorage();
+        }
+
+        // --- 11. SISTEMA DE REORDENAMIENTO ---
+        function moveUp(index) {
+            if (index > 0) {
+                const temp = appState.deliveries[index];
+                appState.deliveries[index] = appState.deliveries[index - 1];
+                appState.deliveries[index - 1] = temp;
+                saveToStorage();
+                renderDeliveries();
+                calculateStats();
+                drawRouteOnMap();
+            }
+        }
+
+        function moveDown(index) {
+            if (index < appState.deliveries.length - 1) {
+                const temp = appState.deliveries[index];
+                appState.deliveries[index] = appState.deliveries[index + 1];
+                appState.deliveries[index + 1] = temp;
+                saveToStorage();
+                renderDeliveries();
+                calculateStats();
+                drawRouteOnMap();
+            }
+        }
+
+        // --- 12. CRUD ACCIONES ---
+        function openAddDeliveryModal() {
+            document.getElementById('modalTitle').innerText = "Agregar Entrega";
+            document.getElementById('editIndex').value = "-1";
+            document.getElementById('deliveryForm').reset();
+            
+            const modal = document.getElementById('deliveryModal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.firstElementChild.classList.remove('translate-y-8');
+        }
+
+        function closeDeliveryModal() {
+            const modal = document.getElementById('deliveryModal');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.firstElementChild.classList.add('translate-y-8');
+        }
+
+        function saveDeliveryForm(e) {
+            e.preventDefault();
+            
+            const editIdx = parseInt(document.getElementById('editIndex').value);
+            const deliveryData = {
+                client: document.getElementById('formCliente').value,
+                phone: document.getElementById('formTelefono').value,
+                district: document.getElementById('formDistrito').value,
+                amount: parseFloat(document.getElementById('formMonto').value) || 0,
+                address: document.getElementById('formDireccion').value,
+                priority: document.getElementById('formPrioridad').value,
+                status: document.getElementById('formEstado').value,
+                reference: document.getElementById('formReferencia').value,
+                lat: editIdx !== -1 ? appState.deliveries[editIdx].lat : null,
+                lng: editIdx !== -1 ? appState.deliveries[editIdx].lng : null
+            };
+
+            if (editIdx === -1) {
+                appState.deliveries.push(deliveryData);
+                setAssistantMessage("🎯 Nueva entrega registrada con éxito");
+            } else {
+                appState.deliveries[editIdx] = deliveryData;
+                setAssistantMessage("✏️ Entrega modificada correctamente");
+            }
+
+            saveToStorage();
+            closeDeliveryModal();
+            renderDeliveries();
+            calculateStats();
+            drawRouteOnMap();
+        }
+
+        function editDelivery(index) {
+            const item = appState.deliveries[index];
+            document.getElementById('modalTitle').innerText = "Editar Entrega";
+            document.getElementById('editIndex').value = index;
+            
+            document.getElementById('formCliente').value = item.client;
+            document.getElementById('formTelefono').value = item.phone || '';
+            document.getElementById('formDistrito').value = item.district;
+            document.getElementById('formMonto').value = item.amount || '';
+            document.getElementById('formDireccion').value = item.address;
+            document.getElementById('formPrioridad').value = item.priority;
+            document.getElementById('formEstado').value = item.status;
+            document.getElementById('formReferencia').value = item.reference || '';
+
+            const modal = document.getElementById('deliveryModal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.firstElementChild.classList.remove('translate-y-8');
+        }
+
+        function deleteDelivery(index) {
+            if (confirm("¿Estás seguro de eliminar esta parada de la secuencia?")) {
+                appState.deliveries.splice(index, 1);
+                saveToStorage();
+                renderDeliveries();
+                calculateStats();
+                drawRouteOnMap();
+                setAssistantMessage("🗑️ Parada eliminada de la ruta");
+            }
+        }
+
+        function updateDeliveryStatus(index, newStatus) {
+            appState.deliveries[index].status = newStatus;
+            saveToStorage();
+            calculateStats();
+            drawRouteOnMap();
+            renderDeliveries();
+            setAssistantMessage(`Estado cambiado: ${newStatus}`);
+        }
+
+        // --- 13. IMPORTACIÓN DE EXCEL REAL / JSON ---
+        function importExcel(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(firstSheet);
+
+                let parsedCount = 0;
+
+                rows.forEach(row => {
+                    // Extraer los campos correspondientes a las columnas reales del Excel de entrada
+                    const rawClient = (row['Recipient Name'] || '').toString().trim();
+                    const rawAddress = (row['Address Line 1'] || '').toString().trim();
+                    const rawDistrict = (row['City'] || '').toString().trim();
+                    const rawPhone = (row['Phone'] || '').toString().trim();
+                    const rawNotes = (row['Notes'] || '').toString().trim();
+
+                    // Omitir filas sin cliente ni dirección (evitar filas vacías accidentales)
+                    if (!rawClient && !rawAddress) return;
+
+                    // Análisis sintáctico del campo "Notes" para extraer producto, costo y observaciones
+                    let parsedProduct = '';
+                    let parsedCost = 0;
+
+                    if (rawNotes) {
+                        // Buscar patrón "Producto: [Nombre]" o "Product: [Nombre]"
+                        const productMatch = rawNotes.match(/(?:Producto|Product|Prod):\s*([^|]+)/i);
+                        if (productMatch) {
+                            parsedProduct = productMatch[1].trim();
+                        }
+
+                        // Buscar patrón de costos "Costo: S/ [Num]" o "Cost: [Num]" o "S/ [Num]"
+                        const costMatch = rawNotes.match(/(?:Costo|Cost|S\/)\s*:?\s*(?:S\/\s*)?([\d.,]+)/i);
+                        if (costMatch) {
+                            parsedCost = parseFloat(costMatch[1].replace(',', '.'));
+                        }
+                    }
+
+                    // Armar la descripción visual para la tarjeta
+                    let finalReference = rawNotes;
+                    if (parsedProduct) {
+                        finalReference = `📦 Prod: ${parsedProduct} | ${rawNotes}`;
+                    }
+
+                    appState.deliveries.push({
+                        client: rawClient,
+                        phone: rawPhone,
+                        address: rawAddress,
+                        district: rawDistrict,
+                        reference: finalReference,
+                        amount: parsedCost || 0,
+                        priority: 'normal',
+                        status: 'pendiente',
+                        lat: null,
+                        lng: null
+                    });
+                    
+                    parsedCount++;
+                });
+
+                saveToStorage();
+                renderDeliveries();
+                calculateStats();
+                drawRouteOnMap();
+                setAssistantMessage(`📂 ¡Importadas con éxito ${parsedCount} entregas reales desde Excel!`);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function importJSON(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    const items = Array.isArray(data) ? data : [data];
+                    let parsedCount = 0;
+                    
+                    items.forEach(item => {
+                        // Permitir compatibilidad tanto con el esquema estándar como con el del Excel mapeado
+                        const rawClient = item.client || item.cliente || item['Recipient Name'] || '';
+                        const rawAddress = item.address || item.direccion || item['Address Line 1'] || '';
+                        const rawDistrict = item.district || item.distrito || item['City'] || '';
+                        const rawPhone = item.phone || item.telefono || item['Phone'] || '';
+                        const rawNotes = item.reference || item.referencia || item.notes || item['Notes'] || '';
+                        const rawAmount = parseFloat(item.amount || item.monto) || 0;
+
+                        if (!rawClient && !rawAddress) return;
+
+                        appState.deliveries.push({
+                            client: rawClient,
+                            phone: rawPhone,
+                            address: rawAddress,
+                            district: rawDistrict,
+                            reference: rawNotes,
+                            amount: rawAmount,
+                            priority: item.priority || 'normal',
+                            status: 'pendiente',
+                            lat: null,
+                            lng: null
+                        });
+                        parsedCount++;
+                    });
+
+                    saveToStorage();
+                    renderDeliveries();
+                    calculateStats();
+                    drawRouteOnMap();
+                    setAssistantMessage(`📂 ¡Se importaron con éxito ${parsedCount} entregas JSON!`);
+                } catch (err) {
+                    alert("Error parseando el archivo JSON");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- 14. EXPORTAR A NAVEGADORES EXTERNOS ---
+        function openInGoogleMaps() {
+            if (appState.deliveries.length === 0) {
+                alert("Primero agrega entregas a la lista.");
+                return;
+            }
+
+            const origin = `${appState.startCoord.lat},${appState.startCoord.lng}`;
+            let dest = '';
+            let waypoints = [];
+
+            if (appState.endCoord && appState.endAddress) {
+                dest = `${appState.endCoord.lat},${appState.endCoord.lng}`;
+                waypoints = appState.deliveries.map(d => `${d.lat},${d.lng}`);
+            } else {
+                const len = appState.deliveries.length;
+                dest = `${appState.deliveries[len - 1].lat},${appState.deliveries[len - 1].lng}`;
+                waypoints = appState.deliveries.slice(0, -1).map(d => `${d.lat},${d.lng}`);
+            }
+
+            const waypointsStr = waypoints.join('|');
+            const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}&waypoints=${encodeURIComponent(waypointsStr)}&travelmode=driving`;
+            window.open(mapsUrl, '_blank');
+        }
+
+        function openInWaze() {
+            const pendingDeliveries = appState.deliveries.filter(d => d.status === 'pendiente');
+            if (pendingDeliveries.length === 0) {
+                alert("No hay paradas pendientes para navegar hoy.");
+                return;
+            }
+
+            const nextStop = pendingDeliveries[0];
+            const wazeUrl = `https://waze.com/ul?ll=${nextStop.lat},${nextStop.lng}&navigate=yes`;
+            window.open(wazeUrl, '_blank');
+        }
+
+        // --- 15. SISTEMA DE HISTORIAL Y GUARDADO ---
+        function finishAndArchiveRoute() {
+            if (appState.deliveries.length === 0) {
+                alert("No hay entregas activas en la ruta para archivar.");
+                return;
+            }
+
+            if (confirm("¿Quieres marcar esta ruta como completada, archivarla y limpiar el tablero de hoy?")) {
+                const completedCount = appState.deliveries.filter(d => d.status === 'entregado').length;
+                const newHistoryItem = {
+                    date: new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+                    stopsCount: appState.deliveries.length,
+                    completedCount: completedCount,
+                    distance: appState.routeStats.distance,
+                    cash: appState.routeStats.collections,
+                    fuel: appState.routeStats.fuel
+                };
+
+                appState.history.unshift(newHistoryItem);
+                appState.deliveries = [];
+                
+                saveToStorage();
+                renderDeliveries();
+                calculateStats();
+                drawRouteOnMap();
+                renderHistory();
+                switchTab('history');
+                
+                setAssistantMessage("🏁 ¡Felicidades! Ruta finalizada y guardada en el historial.");
+            }
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('historyContainer');
+            container.innerHTML = '';
+
+            let globalRoutes = appState.history.length;
+            let globalKms = 0;
+            let globalDeliveries = 0;
+
+            appState.history.forEach(item => {
+                globalKms += item.distance || 0;
+                globalDeliveries += item.completedCount || 0;
+            });
+
+            document.getElementById('histTotalRoutes').innerText = globalRoutes;
+            document.getElementById('histTotalKms').innerText = `${globalKms.toFixed(1)} km`;
+            document.getElementById('histTotalDeliveries').innerText = globalDeliveries;
+
+            if (appState.history.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center p-8 text-center bg-white dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                        <i class="fa-solid fa-clock-rotate-left text-3xl text-slate-300 dark:text-slate-700 mb-2"></i>
+                        <p class="text-xs text-slate-400 font-medium">No hay registros de rutas guardadas anteriormente.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            appState.history.forEach((item) => {
+                const card = document.createElement('div');
+                card.className = "bg-white dark:bg-slate-800/80 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-800/40 flex flex-col gap-2";
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                                <i class="fa-solid fa-route text-sm"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-xs">Ruta - ${item.date}</h4>
+                                <p class="text-[10px] text-slate-400 font-medium">${item.completedCount} de ${item.stopsCount} paradas completadas</p>
+                            </div>
+                        </div>
+                        <span class="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">Completada</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/60 text-center">
+                        <div>
+                            <p class="text-[8px] uppercase tracking-wider text-slate-400 font-bold">Distancia</p>
+                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200">${item.distance} km</p>
+                        </div>
+                        <div>
+                            <p class="text-[8px] uppercase tracking-wider text-slate-400 font-bold">Monto Cobrado</p>
+                            <p class="text-xs font-bold text-emerald-600">S/. ${item.cash.toFixed(1)}</p>
+                        </div>
+                        <div>
+                            <p class="text-[8px] uppercase tracking-wider text-slate-400 font-bold">Consumo</p>
+                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200">${item.fuel} L</p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function clearHistory() {
+            if (confirm("¿Estás seguro de que deseas eliminar permanentemente todo el historial de rutas?")) {
+                appState.history = [];
+                saveToStorage();
+                renderHistory();
+                setAssistantMessage("🗑️ Historial de rutas borrado.");
+            }
+        }
+
+        // --- 16. PERSISTENCIA EN LOCALSTORAGE ---
+        // ===== SYNC CON RIDERTRACK =====
+        function syncRiderTrack() {
+            try {
+                const rt = JSON.parse(localStorage.getItem('urRoute') || '{}');
+                const clsRT = rt.cl || [];
+                if (!clsRT.length) {
+                    setAssistantMessage('⚠️ RiderTrack sin clientes. Carga tu ruta primero.');
+                    return;
+                }
+                function mapSt(st) {
+                    if (!st || st === 'pendiente') return 'pendiente';
+                    const ent = ['efectivo','yape-rudy','yape-plin','yape-efectivo','transferencia','pos','pago-link','jose-smith','cambio'];
+                    if (ent.includes(st)) return 'entregado';
+                    if (st === 'fallida' || st === 'rechazado' || st === 'devuelto' || st === 'cancelado') return 'fallido';
+                    if (st === 'reprogramar') return 'reprogramado';
+                    if (st === 'no-contesta' || st === 'ausente') return 'no-contesta';
+                    return 'pendiente';
+                }
+                appState.deliveries = clsRT.map((c, i) => ({
+                    client: c.nombre || '',
+                    phone: c.cel || '',
+                    address: c.dir || '',
+                    district: c.dist || '',
+                    reference: c.prod ? '📦 ' + c.prod : '',
+                    amount: parseFloat(c.cobrar || c.precio || 0),
+                    priority: 'normal',
+                    status: mapSt(c.st),
+                    lat: null,
+                    lng: null,
+                    _rtId: c.id || i
+                }));
+                saveToStorage();
+                renderDeliveries();
+                calculateStats();
+                drawRouteOnMap();
+                setAssistantMessage('✅ ' + appState.deliveries.length + ' clientes desde RiderTrack');
+            } catch(e) {
+                setAssistantMessage('❌ Error al sincronizar');
+                console.error(e);
+            }
+        }
+
+        function saveToStorage() {
+            localStorage.setItem('circuit_lite_state', JSON.stringify({
+                deliveries: appState.deliveries,
+                startAddress: appState.startAddress,
+                endAddress: appState.endAddress,
+                startCoord: appState.startCoord,
+                endCoord: appState.endCoord,
+                history: appState.history
+            }));
+        }
+
+        function loadFromStorage() {
+            const data = localStorage.getItem('circuit_lite_state');
+            if (data) {
+                const parsed = JSON.parse(data);
+                appState.deliveries = parsed.deliveries || [];
+                appState.startAddress = parsed.startAddress || 'Plaza Mayor, Cercado de Lima';
+                appState.endAddress = parsed.endAddress || 'Miraflores, Lima';
+                appState.startCoord = parsed.startCoord || { lat: -12.046374, lng: -77.042793 };
+                appState.endCoord = parsed.endCoord || { lat: -12.111058, lng: -77.031584 };
+                appState.history = parsed.history || [];
+
+                document.getElementById('startAddress').value = appState.startAddress;
+                document.getElementById('endAddress').value = appState.endAddress;
+            } else {
+                // Datos demo para inicialización por primera vez
+                appState.deliveries = [
+                    { client: "Aldo Coppo", phone: "987654321", address: "Calle las viñas 176 dpto 101 urb aurora", district: "Miraflores", reference: "📦 Prod: NeckSupport | Nota: Dejar en portería si no responde", amount: 69.9, priority: "alta", status: "pendiente", lat: -12.12154, lng: -77.02987 },
+                    { client: "María Rojas", phone: "912345678", address: "Av. Petit Thouars 1250", district: "Cercado de Lima", reference: "Piso 4 Oficina 402", amount: 45.0, priority: "normal", status: "pendiente", lat: -12.07223, lng: -77.03542 },
+                    { client: "Farmacia San Juan", phone: "945612378", address: "Av. Javier Prado Este 2500", district: "San Borja", reference: "Frente al centro comercial", amount: 0, priority: "normal", status: "pendiente", lat: -12.08643, lng: -77.00124 }
+                ];
+                appState.history = [
+                    { date: "24 de May, 08:30", stopsCount: 4, completedCount: 4, distance: 15.4, cash: 245.0, fuel: 0.4 },
+                    { date: "22 de May, 09:15", stopsCount: 5, completedCount: 4, distance: 18.2, cash: 310.0, fuel: 0.5 }
+                ];
+                saveToStorage();
+            }
+        }
+
+        // --- 17. CONTROL DE NAVEGACIÓN (TABS PANELS) ---
+        function switchTab(tabId) {
+            appState.currentTab = tabId;
+
+            document.getElementById('viewHome').classList.add('hidden');
+            document.getElementById('viewDeliveries').classList.add('hidden');
+            document.getElementById('viewHistory').classList.add('hidden');
+
+            if (tabId === 'home') {
+                document.getElementById('viewHome').classList.remove('hidden');
+                setTimeout(() => { if (map) map.invalidateSize(); }, 200);
+            } else if (tabId === 'deliveries') {
+                document.getElementById('viewDeliveries').classList.remove('hidden');
+                renderDeliveries(); 
+            } else if (tabId === 'history') {
+                document.getElementById('viewHistory').classList.remove('hidden');
+                renderHistory();
+            }
+
+            const tabs = ['home', 'deliveries', 'history'];
+            tabs.forEach(tab => {
+                const buttonElement = document.getElementById(`tab${capitalize(tab)}`);
+                if (tab === tabId) {
+                    buttonElement.className = 'flex flex-col items-center gap-0.5 text-brand-500 transition-colors';
+                } else {
+                    buttonElement.className = 'flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors';
+                }
+            });
+        }
+
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        // --- 18. BOT ASISTENTE FLOTANTE ---
+        let assistantTimeout;
+        function toggleAssistant() {
+            const bubble = document.getElementById('assistantBubble');
+            bubble.classList.toggle('hidden');
+        }
+
+        function setAssistantMessage(text) {
+            const bubble = document.getElementById('assistantBubble');
+            bubble.innerText = text;
+            bubble.classList.remove('hidden');
+
+            clearTimeout(assistantTimeout);
+            assistantTimeout = setTimeout(() => {
+                bubble.classList.add('opacity-0');
+                setTimeout(() => {
+                    bubble.classList.add('hidden');
+                    bubble.classList.remove('opacity-0');
+                }, 300);
+            }, 6000);
+        }
+
+        function triggerAssistantRandomTip() {
+            const tips = [
+                "¡Buenas rutas hoy! Conduce con seguridad 🚚",
+                "Optimizar tu itinerario reduce el consumo de combustible ⛽",
+                "Puedes cambiar el orden usando los botones de subir/bajar de las tarjetas.",
+                "Haz clic en 'Abrir Google Maps' para mandar toda la ruta de reparto directo a tu móvil.",
+                "En la pestaña 'Historial' puedes archivar tu jornada diaria y ver tus Kms totales."
+            ];
+            
+            setInterval(() => {
+                const randomTip = tips[Math.floor(Math.random() * tips.length)];
+                setAssistantMessage(randomTip);
+            }, 30000);
+        }
+    </script>
+
+    <!-- Estilos Adicionales Estilo App Móvil y Glassmorphism -->
+    <style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        
+        .glass-light {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+        .glass-dark {
+            background: rgba(22, 31, 48, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .splash-loader {
+            border-top-color: #3b82f6;
+            animation: spinner 1.5s linear infinite;
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.3);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-50 dark:bg-darkBg text-slate-900 dark:text-slate-100 transition-colors duration-300 overflow-hidden flex flex-col">
+
+    <!-- SPLASH SCREEN CINEMATOGRÁFICO -->
+    <div id="splashScreen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 transition-opacity duration-1000">
+        <div class="relative flex flex-col items-center max-w-sm px-6 text-center">
+            <div class="relative w-24 h-24 mb-6 flex items-center justify-center">
+                <div class="absolute inset-0 rounded-full border-4 border-slate-800"></div>
+                <div class="absolute inset-0 rounded-full border-4 border-t-brand-500 animate-spin"></div>
+                <i class="fa-solid fa-route text-4xl text-brand-500 animate-pulse"></i>
+            </div>
+            
+            <h1 class="text-3xl font-bold tracking-wider text-white mb-2">CIRCUIT LITE</h1>
+            <p class="text-xs text-slate-400 uppercase tracking-widest mb-8">Route Optimizer Lab</p>
+            
+            <div class="w-64 h-1.5 bg-slate-800 rounded-full overflow-hidden mb-4">
+                <div id="splashProgress" class="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-300" style="width: 0%"></div>
+            </div>
+            
+            <p id="splashMessage" class="text-sm text-brand-100 font-medium tracking-wide min-h-[20px]">Inicializando sistemas...</p>
+        </div>
+    </div>
+
+    <!-- HEADER DE LA APP -->
+    <header class="w-full shrink-0 border-b border-slate-200 dark:border-slate-800 glass-light dark:glass-dark px-4 py-3 flex items-center justify-between z-30">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-brand-500/20">
+                <i class="fa-solid fa-route text-white text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-sm leading-tight">Circuit Lite</h1>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400">Sandbox de Optimización</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <!-- GPS Status Badge -->
+            <div class="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                <span id="gpsDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span id="gpsStatusText">GPS Activo</span>
+            </div>
+
+            <!-- Velocímetro Integrado -->
+            <div class="flex flex-col items-end">
+                <span id="currentSpeed" class="text-sm font-black text-brand-600 dark:text-brand-400 leading-none">0</span>
+                <span class="text-[8px] uppercase tracking-widest text-slate-400 font-bold">km/h</span>
+            </div>
+
+            <!-- Botón Tema Claro/Oscuro -->
+            <button onclick="toggleTheme()" class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 active:scale-95 transition-all">
+                <i id="themeIcon" class="fa-solid fa-moon"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENEDOR PRINCIPAL MULTI-VISTA (Tab Views) -->
+    <main class="flex-1 overflow-y-auto pb-24 relative">
+
+        <!-- ================= VISTA 1: DASHBOARD (HOME) ================= -->
+        <div id="viewHome" class="space-y-4 animate-fade-in">
+            <!-- ESTADÍSTICAS DEL DÍA -->
+            <section class="p-4 grid grid-cols-5 gap-2 shrink-0">
+                <div class="col-span-1 bg-white dark:bg-slate-800/80 rounded-xl p-2.5 text-center shadow-sm border border-slate-100 dark:border-slate-800">
+                    <p class="text-[10px] text-slate-400 uppercase font-semibold">Stops</p>
+                    <p id="statStops" class="text-lg font-bold text-slate-800 dark:text-white mt-1">0</p>
+                </div>
+                <div class="col-span-1 bg-white dark:bg-slate-800/80 rounded-xl p-2.5 text-center shadow-sm border border-slate-100 dark:border-slate-800">
+                    <p class="text-[10px] text-slate-400 uppercase font-semibold">Dist.</p>
+                    <p id="statKm" class="text-lg font-bold text-slate-800 dark:text-white mt-1">0 <span class="text-[9px] font-normal">km</span></p>
+                </div>
+                <div class="col-span-1 bg-white dark:bg-slate-800/80 rounded-xl p-2.5 text-center shadow-sm border border-slate-100 dark:border-slate-800">
+                    <p class="text-[10px] text-slate-400 uppercase font-semibold">Tiempo</p>
+                    <p id="statTime" class="text-sm font-bold text-slate-800 dark:text-white mt-1 leading-6">0h</p>
+                </div>
+                <div class="col-span-1 bg-white dark:bg-slate-800/80 rounded-xl p-2.5 text-center shadow-sm border border-slate-100 dark:border-slate-800">
+                    <p class="text-[10px] text-slate-400 uppercase font-semibold">Monto</p>
+                    <p id="statCash" class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-1 leading-6">S/.0</p>
+                </div>
+                <div class="col-span-1 bg-white dark:bg-slate-800/80 rounded-xl p-2.5 text-center shadow-sm border border-slate-100 dark:border-slate-800">
+                    <p class="text-[10px] text-slate-400 uppercase font-semibold">Comb.</p>
+                    <p id="statFuel" class="text-lg font-bold text-amber-500 dark:text-amber-400 mt-1">0 <span class="text-[9px] font-normal">L</span></p>
+                </div>
+            </section>
+
+            <!-- GPS STATUS BAR -->
+            <section class="px-4 mb-3">
+              <div class="bg-white dark:bg-slate-800/80 rounded-2xl px-4 py-3 shadow-sm border border-slate-100 dark:border-slate-800/40 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div id="gpsDot" class="w-2 h-2 rounded-full bg-red-500"></div>
+                  <span id="gpsStatusText" class="text-xs font-bold text-slate-500 dark:text-slate-400">GPS Inactivo</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span id="currentSpeed" class="text-xl font-black text-brand-500">0</span>
+                  <span class="text-[10px] font-bold text-slate-400">km/h</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- MAPA INTERACTIVO -->
+            <section class="px-4">
+                <div class="relative w-full h-56 rounded-2xl overflow-hidden shadow-md border border-slate-200 dark:border-slate-800">
+                    <div id="map" class="w-full h-full z-10 bg-slate-200"></div>
+                    <div class="absolute bottom-2 right-2 z-20 flex gap-1">
+                        <button onclick="recenterMap()" class="bg-white dark:bg-slate-800 p-2 rounded-lg shadow text-slate-700 dark:text-slate-200 text-xs flex items-center justify-center">
+                            <i class="fa-solid fa-crosshairs"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PANEL DE NAVEGACIÓN Y ACCIONES -->
+            <section class="px-4 flex flex-col gap-2">
+                <div class="flex gap-2">
+                    <button onclick="optimizeRoute()" class="flex-1 bg-gradient-to-r from-brand-600 to-indigo-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-brand-500/10 flex items-center justify-center gap-2 active:scale-[0.98] transition-all text-sm">
+                        <i class="fa-solid fa-brain text-amber-300"></i> OPTIMIZAR RUTA
+                    </button>
+                    
+                    <button onclick="openAddDeliveryModal()" class="w-12 h-12 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center active:scale-95 transition-transform shrink-0">
+                        <i class="fa-solid fa-plus text-lg"></i>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 mt-1">
+                    <button onclick="openInGoogleMaps()" class="bg-slate-200/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-800 py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors">
+                        <i class="fa-solid fa-map-location-dot text-blue-500"></i> Abrir Google Maps
+                    </button>
+                    <button onclick="openInWaze()" class="bg-slate-200/70 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-800 py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors">
+                        <i class="fa-brands fa-waze text-sky-400"></i> Abrir en Waze
+                    </button>
+                </div>
+            </section>
+
+            <!-- CONFIGURACIÓN DE PUNTOS -->
+            <section class="px-4">
+                <div class="bg-white dark:bg-slate-800/60 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-800/50">
+                    <div class="flex items-center justify-between mb-3 border-b border-slate-100 dark:border-slate-800/60 pb-2">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Puntos de Referencia</h3>
+                        <i class="fa-solid fa-route text-slate-400"></i>
+                    </div>
+                    
+                    <div class="flex flex-col gap-3">
+                        <div class="flex items-start gap-3">
+                            <div class="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                                <i class="fa-solid fa-location-arrow text-xs"></i>
+                            </div>
+                            <div class="flex-1">
+                                <label class="text-[10px] text-slate-400 uppercase font-semibold">📍 Punto de Inicio</label>
+                                <input type="text" id="startAddress" value="Plaza Mayor, Cercado de Lima" onchange="updateStartEnd()" class="w-full bg-transparent border-b border-slate-200 dark:border-slate-700 py-1 text-xs focus:outline-none focus:border-brand-500 dark:focus:border-brand-400 font-medium">
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start gap-3">
+                            <div class="w-7 h-7 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0 mt-0.5">
+                                <i class="fa-solid fa-house text-xs"></i>
+                            </div>
+                            <div class="flex-1">
+                                <label class="text-[10px] text-slate-400 uppercase font-semibold">🏠 Punto Final (Opcional)</label>
+                                <input type="text" id="endAddress" placeholder="Dejar en blanco para retorno al inicio" value="Miraflores, Lima" onchange="updateStartEnd()" class="w-full bg-transparent border-b border-slate-200 dark:border-slate-700 py-1 text-xs focus:outline-none focus:border-brand-500 dark:focus:border-brand-400 font-medium">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- IMPORTAR DATOS (EXCEL REAL / JSON) -->
+            <section class="px-4">
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="bg-white dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700 hover:border-brand-500 rounded-xl p-3 flex flex-col items-center justify-center cursor-pointer text-center gap-1 transition-colors">
+                        <input type="file" id="excelFile" accept=".xlsx, .xls" class="hidden" onchange="importExcel(event)">
+                        <i class="fa-regular fa-file-excel text-emerald-500 text-lg"></i>
+                        <span class="text-[10px] font-bold">Importar Excel</span>
+                    </label>
+                    
+                    <label class="bg-white dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700 hover:border-brand-500 rounded-xl p-3 flex flex-col items-center justify-center cursor-pointer text-center gap-1 transition-colors">
+                        <input type="file" id="jsonFile" accept=".json" class="hidden" onchange="importJSON(event)">
+                        <i class="fa-regular fa-file-code text-indigo-500 text-lg"></i>
+                        <span class="text-[10px] font-bold">Importar JSON</span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- ACCIÓN DE FINALIZACIÓN DE RUTA -->
+            <section class="px-4">
+                <button onclick="finishAndArchiveRoute()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2 transition-all text-xs">
+                    <i class="fa-solid fa-circle-check"></i> FINALIZAR Y GUARDAR EN HISTORIAL
+                </button>
+            </section>
+        </div>
+
+
+        <!-- ================= VISTA 2: GESTIÓN DE ENTREGAS ================= -->
+        <div id="viewDeliveries" class="hidden px-4 py-2 space-y-4 animate-fade-in">
+            <!-- Buscador y Filtros -->
+            <div class="bg-white dark:bg-slate-800/60 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800/50 space-y-3">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                        <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                    </span>
+                    <input type="text" id="searchQuery" oninput="applyFilters()" placeholder="Buscar cliente, dirección o notas..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-brand-500 text-slate-800 dark:text-slate-100">
+                </div>
+
+                <!-- Botones de Estado (Filtros) -->
+                <div class="flex flex-wrap gap-1">
+                    <button onclick="setStatusFilter('all')" id="filterBtn_all" class="px-3 py-1.5 rounded-full text-[10px] font-bold transition-all bg-brand-500 text-white">Todos</button>
+                    <button onclick="setStatusFilter('pendiente')" id="filterBtn_pendiente" class="px-3 py-1.5 rounded-full text-[10px] font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">🟡 Pendientes</button>
+                    <button onclick="setStatusFilter('entregado')" id="filterBtn_entregado" class="px-3 py-1.5 rounded-full text-[10px] font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">🟢 Entregados</button>
+                    <button onclick="setStatusFilter('fallido')" id="filterBtn_fallido" class="px-3 py-1.5 rounded-full text-[10px] font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">🔴 Fallidos</button>
+                    <button onclick="setStatusFilter('incidencias')" id="filterBtn_incidencias" class="px-3 py-1.5 rounded-full text-[10px] font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">⚠️ Incidencias</button>
+                </div>
+            </div>
+
+            <!-- Contenedor Dinámico de Tarjetas Premium -->
+            <div class="flex items-center justify-between px-1">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Listado de Paradas</h3>
+                <button onclick="openAddDeliveryModal()" class="text-xs text-brand-500 font-bold flex items-center gap-1">
+                    <i class="fa-solid fa-plus"></i> Nueva Parada
+                </button>
+            </div>
+
+            <div id="deliveriesContainer" class="flex flex-col gap-3">
+                <!-- Inyectado dinámicamente con JS -->
+            </div>
+        </div>
+
+
+        <!-- ================= VISTA 3: HISTORIAL DE RUTAS ================= -->
+        <div id="viewHistory" class="hidden px-4 py-2 space-y-4 animate-fade-in">
+            <!-- Header Historial -->
+            <div class="bg-gradient-to-tr from-slate-900 to-indigo-950 text-white rounded-2xl p-5 shadow-lg border border-slate-800/80">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-lg font-black tracking-wide">Rutas Archivadas</h3>
+                        <p class="text-xs text-slate-400 mt-1">Histórico acumulado de entregas y kilometraje.</p>
+                    </div>
+                    <button onclick="clearHistory()" class="text-xs bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 px-2.5 py-1.5 rounded-lg font-semibold transition-all">
+                        <i class="fa-solid fa-trash-can mr-1"></i> Borrar Todo
+                    </button>
+                </div>
+                
+                <!-- Estadísticas Globales Históricas -->
+                <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-800">
+                    <div class="text-center">
+                        <p class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Rutas</p>
+                        <p id="histTotalRoutes" class="text-base font-black text-white">0</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Total Kms</p>
+                        <p id="histTotalKms" class="text-base font-black text-brand-400">0 km</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Entregas</p>
+                        <p id="histTotalDeliveries" class="text-base font-black text-emerald-400">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Listado de Rutas Históricas -->
+            <div class="flex items-center justify-between px-1">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Actividades Recientes</h3>
+            </div>
+
+            <div id="historyContainer" class="flex flex-col gap-3">
+                <!-- Se inyecta dinámicamente -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- NAVEGACIÓN INFERIOR (TAB BAR ESTILO APP) -->
+    <nav class="fixed bottom-0 inset-x-0 h-16 bg-white/80 dark:bg-darkCard/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-800/80 z-40 px-6 flex items-center justify-around">
+        <button onclick="switchTab('home')" id="tabHome" class="flex flex-col items-center gap-0.5 text-brand-500">
+            <i class="fa-solid fa-house-laptop text-lg"></i>
+            <span class="text-[10px] font-medium">Dashboard</span>
+        </button>
+        <button onclick="switchTab('deliveries')" id="tabDeliveries" class="flex flex-col items-center gap-0.5 text-slate-400">
+            <i class="fa-solid fa-boxes-packing text-lg"></i>
+            <span class="text-[10px] font-medium">Entregas</span>
+        </button>
+        <button onclick="switchTab('history')" id="tabHistory" class="flex flex-col items-center gap-0.5 text-slate-400">
+            <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+            <span class="text-[10px] font-medium">Historial</span>
+        </button>
+    </nav>
+
+    <!-- ASISTENTE VIRTUAL FLOTANTE (ROUTE ASSISTANT) -->
+    <div id="assistantContainer" class="fixed bottom-20 right-4 z-40 flex flex-col items-end gap-2 max-w-[240px]">
+        <div id="assistantBubble" class="hidden bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs py-2 px-3 rounded-2xl rounded-tr-none shadow-xl border border-slate-800 dark:border-slate-100 transition-all duration-300">
+            ¡Hola! Todo listo para armar tu ruta hoy. 🚚
+        </div>
+        <button onclick="toggleAssistant()" class="w-12 h-12 rounded-full bg-gradient-to-tr from-brand-500 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-brand-500/30 border border-white/20 active:scale-95 transition-all">
+            <i class="fa-solid fa-robot text-lg"></i>
+        </button>
+    </div>
+
+    <!-- MODAL: AGREGAR / EDITAR ENTREGA -->
+    <div id="deliveryModal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl transition-transform duration-300 translate-y-8">
+            <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
+                <h3 id="modalTitle" class="font-bold text-base">Agregar Entrega</h3>
+                <button onclick="closeDeliveryModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <form id="deliveryForm" onsubmit="saveDeliveryForm(event)" class="p-5 flex flex-col gap-4 max-h-[70vh] overflow-y-auto text-slate-800 dark:text-slate-100">
+                <input type="hidden" id="editIndex" value="-1">
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[10px] uppercase tracking-wider font-bold text-slate-400 block mb-1">Cliente</label>
+                        <input type="text" id="formCliente" required class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-slate-800 dark:text-slate-100">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase tracking-wider font-bold text-slate-400 block mb-1">Teléfono</label>
+                        <input type="tel" id="formTelefono" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-slate-800 dark:text-slate-100">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="col-span-1">
+                        <label class="text-[10px] uppercase tracking-wider font-bold text-slate-400 block mb-1">Distrito</label>
+                        <input type="text" id="formDistrito" required placeholder="Ej. Miraflores" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-slate-800 dark:text-slate-100">
+                    </div>
+                    <div class="col-span-1">
+                        <label class="text-[10px] uppercase tracking-wider font-bold text-slate-400 block mb-1">Monto Cobro</label>
+                        <input type="number" step="0.01" id="formMonto" placeholder="S/." class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-slate-800 dark:text-slate-100">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[10px] uppercase tracking-wider font-bold text-slate-400 block mb-1">Dirección</label>
+                    <input type="text" id="formDireccion" required placeholder="Av. Principal 123" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-slate-800 dark:text-slate-100">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[10px] uppercase tracking-wider font-bold text-slate-400 block mb-1">Prioridad</label>
+                        <select id="formPrioridad" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-slate-800 dark:text-slate-100">
+                            <option value="normal">Normal</option>
+                            <option value="alta">Alta 🔥</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase tracking-wider font-bold text-slate-400 block mb-1">Estado</label>
+                        <select id="formEstado" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-slate-800 dark:text-slate-100">
+                            <option value="pendiente">🟡 Pendiente</option>
+                            <option value="entregado">🟢 Entregado</option>
+                            <option value="fallido">🔴 Fallido</option>
+                            <option value="no-contesta">📞 No contesta</option>
+                            <option value="reprogramado">🔄 Reprogramado</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[10px] uppercase tracking-wider font-bold text-slate-400 block mb-1">Referencia / Notas</label>
+                    <textarea id="formReferencia" rows="2" placeholder="Edificio 4, depto 201" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-slate-800 dark:text-slate-100"></textarea>
+                </div>
+
+                <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-brand-500/10 transition-colors mt-2">
+                    Guardar Entrega
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- SCRIPTS CORE: LÓGICA Y OPTIMIZACIÓN -->
+    <script>
+        // --- 1. ESTADO DE LA APLICACIÓN ---
+        let appState = {
+            deliveries: [],
+            startAddress: 'Plaza Mayor, Cercado de Lima',
+            endAddress: 'Miraflores, Lima',
+            startCoord: { lat: -12.046374, lng: -77.042793 }, 
+            endCoord: { lat: -12.111058, lng: -77.031584 },   
+            currentTab: 'home',
+            gpsActive: false,
+            userLocation: null,
+            routeStats: { distance: 0, time: 0, fuel: 0, collections: 0 },
+            activeStatusFilter: 'all',
+            history: [] 
+        };
+
+        let map, routeLine, markersGroup;
+
+        // --- 2. PREPARACIÓN Y SPLASH SCREEN ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initSplash();
+            initTheme();
+        });
+
+        function initSplash() {
+            const progress = document.getElementById('splashProgress');
+            const message = document.getElementById('splashMessage');
+            const screen = document.getElementById('splashScreen');
+            
+            const steps = [
+                { p: 20, m: 'Cargando mapas interactivos...' },
+                { p: 40, m: 'Inicializando posicionamiento GPS...' },
+                { p: 60, m: 'Sincronizando memoria local...' },
+                { p: 80, m: 'Verificando motor heurístico...' },
+                { p: 100, m: '¡Listo para la ruta!' }
+            ];
+
+            let stepIdx = 0;
+            const interval = setInterval(() => {
+                if (stepIdx < steps.length) {
+                    progress.style.width = steps[stepIdx].p + '%';
+                    message.innerText = steps[stepIdx].m;
+                    stepIdx++;
+                } else {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        screen.classList.add('opacity-0');
+                        setTimeout(() => screen.remove(), 1000);
+                        initApp();
+                    }, 500);
+                }
+            }, 250);
+        }
+
+        // --- 3. INICIALIZACIÓN DE LA APLICACIÓN ---
+        function initApp() {
+            loadFromStorage();
+            initMap();
+            initGPS();
+            switchTab('home'); 
+            renderDeliveries();
+            calculateStats();
+            renderHistory();
+            triggerAssistantRandomTip();
+        }
+
+        // --- 4. TEMA CLARO/OSCURO ---
+        function initTheme() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('themeIcon').className = 'fa-solid fa-sun';
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('themeIcon').className = 'fa-solid fa-moon';
+            }
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.theme = 'light';
+                icon.className = 'fa-solid fa-moon';
+            } else {
+                html.classList.add('dark');
+                localStorage.theme = 'dark';
+                icon.className = 'fa-solid fa-sun';
+            }
+        }
+
+        // --- 5. CONTROLADOR DE MAPA ---
+        function initMap() {
+            map = L.map('map', {
+                zoomControl: false,
+                touchZoom: true
+            }).setView([appState.startCoord.lat, appState.startCoord.lng], 13);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OSM &copy; CARTO'
+            }).addTo(map);
+
+            markersGroup = L.layerGroup().addTo(map);
+            drawRouteOnMap();
+        }
+
+        function recenterMap() {
+            if (appState.startCoord) {
+                map.setView([appState.startCoord.lat, appState.startCoord.lng], 13);
+            }
+        }
+
+        // --- 6. GEOLOCALIZACIÓN Y GPS ---
+        function initGPS() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.watchPosition(
+                    (position) => {
+                        appState.gpsActive = true;
+                        appState.userLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        
+                        const speed = position.coords.speed ? Math.round(position.coords.speed * 3.6) : 0;
+                        document.getElementById('currentSpeed').innerText = speed;
+
+                        document.getElementById('gpsDot').className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+                        document.getElementById('gpsStatusText').innerText = "GPS Activo";
+                    },
+                    (error) => {
+                        console.warn("GPS desconectado:", error);
+                        appState.gpsActive = false;
+                        document.getElementById('gpsDot').className = "w-2 h-2 rounded-full bg-red-500";
+                        document.getElementById('gpsStatusText').innerText = "GPS Inactivo";
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            }
+        }
+
+        // --- 7. LOGÍSTICA Y ESTADÍSTICAS ---
+        function calculateStats() {
+            const totalDeliveries = appState.deliveries.length;
+            let totalAmount = 0;
+            let currentDistance = 0;
+
+            appState.deliveries.forEach(d => {
+                totalAmount += parseFloat(d.amount) || 0;
+            });
+
+            if (totalDeliveries > 0) {
+                let current = appState.startCoord;
+                appState.deliveries.forEach(dest => {
+                    if (dest.lat && dest.lng) {
+                        currentDistance += calculateHaversine(current, dest);
+                        current = dest;
+                    }
+                });
+                if (appState.endAddress && appState.endCoord) {
+                    currentDistance += calculateHaversine(current, appState.endCoord);
+                }
+            }
+
+            const correctedDistance = currentDistance * 1.3;
+            const speedKmH = 28;
+            const transitTimeHrs = correctedDistance / speedKmH;
+            const stopTimeHrs = (totalDeliveries * 5) / 60;
+            const totalHours = transitTimeHrs + stopTimeHrs;
+            const totalFuel = correctedDistance * 0.025;
+
+            appState.routeStats = {
+                distance: parseFloat(correctedDistance.toFixed(1)),
+                time: totalHours,
+                fuel: parseFloat(totalFuel.toFixed(1)),
+                collections: totalAmount
+            };
+
+            document.getElementById('statStops').innerText = totalDeliveries;
+            document.getElementById('statKm').innerHTML = `${appState.routeStats.distance} <span class="text-[9px] font-normal">km</span>`;
+            document.getElementById('statTime').innerText = formatHours(totalHours);
+            document.getElementById('statCash').innerText = `S/. ${totalAmount.toFixed(1)}`;
+            document.getElementById('statFuel').innerHTML = `${appState.routeStats.fuel} <span class="text-[9px] font-normal">L</span>`;
+        }
+
+        function calculateHaversine(coord1, coord2) {
+            const R = 6371;
+            const dLat = (coord2.lat - coord1.lat) * Math.PI / 180;
+            const dLng = (coord2.lng - coord1.lng) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(coord1.lat * Math.PI / 180) * Math.cos(coord2.lat * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function formatHours(hours) {
+            const h = Math.floor(hours);
+            const m = Math.round((hours - h) * 60);
+            return h > 0 ? `${h}h ${m}m` : `${m}m`;
+        }
+
+        // --- 8. MOTOR DE OPTIMIZACIÓN DE RUTA ---
+        async function geocodeAddress(address) {
+            if (!address || address.trim() === "") return null;
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address + ", Lima, Peru")}`);
+                const data = await response.json();
+                if (data && data.length > 0) {
+                    return {
+                        lat: parseFloat(data[0].lat),
+                        lng: parseFloat(data[0].lon)
+                    };
+                }
+            } catch (e) {
+                console.warn("Error geocodificando, aplicando fallback:", address);
+            }
+            return generateMockCoordinates(address);
+        }
+
+        function generateMockCoordinates(address) {
+            let hash = 0;
+            for (let i = 0; i < address.length; i++) {
+                hash = address.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const latOff = ((hash % 100) / 1000) * 0.08;
+            const lngOff = (((hash >> 4) % 100) / 1000) * 0.08;
+            return {
+                lat: -12.046374 + latOff,
+                lng: -77.042793 + lngOff
+            };
+        }
+
+        async function optimizeRoute() {
+            setAssistantMessage("🧠 Optimizando secuencias y calculando trayectorias...");
+            
+            const resolvedStart = await geocodeAddress(appState.startAddress);
+            if (resolvedStart) appState.startCoord = resolvedStart;
+
+            if (appState.endAddress) {
+                const resolvedEnd = await geocodeAddress(appState.endAddress);
+                if (resolvedEnd) appState.endCoord = resolvedEnd;
+            } else {
+                appState.endCoord = null;
+            }
+
+            let unvisited = [];
+            for (let item of appState.deliveries) {
+                if (!item.lat || !item.lng) {
+                    const coords = await geocodeAddress(`${item.address}, ${item.district}`);
+                    item.lat = coords.lat;
+                    item.lng = coords.lng;
+                }
+                unvisited.push(item);
+            }
+
+            let currentPoint = appState.startCoord;
+            let optimizedRoute = [];
+
+            while (unvisited.length > 0) {
+                let nearestIdx = -1;
+                let minDistance = Infinity;
+
+                for (let i = 0; i < unvisited.length; i++) {
+                    const dist = calculateHaversine(currentPoint, unvisited[i]);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        nearestIdx = i;
+                    }
+                }
+
+                if (nearestIdx !== -1) {
+                    const nearestNode = unvisited.splice(nearestIdx, 1)[0];
+                    optimizedRoute.push(nearestNode);
+                    currentPoint = nearestNode;
+                }
+            }
+
+            appState.deliveries = optimizedRoute;
+            saveToStorage();
+            renderDeliveries();
+            calculateStats();
+            drawRouteOnMap();
+
+            setAssistantMessage("🚀 ¡Ruta estructurada reduciendo recorridos duplicados!");
+        }
+
+        // --- 9. INTEGRACIÓN DE MAPA Y POLILÍNEAS ---
+        function drawRouteOnMap() {
+            if (!map) return;
+            markersGroup.clearLayers();
+
+            let latlngs = [];
+
+            if (appState.startCoord) {
+                latlngs.push([appState.startCoord.lat, appState.startCoord.lng]);
+                L.marker([appState.startCoord.lat, appState.startCoord.lng], {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold border-2 border-white shadow-md shadow-emerald-500/50"><i class="fa-solid fa-play text-[10px]"></i></div>`,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    })
+                }).addTo(markersGroup).bindPopup("<b>📍 Punto de Inicio:</b><br>" + appState.startAddress);
+            }
+
+            appState.deliveries.forEach((delivery, index) => {
+                if (delivery.lat && delivery.lng) {
+                    const pos = [delivery.lat, delivery.lng];
+                    latlngs.push(pos);
+
+                    let colorClass = "bg-brand-500 shadow-brand-500/50";
+                    if (delivery.status === 'entregado') colorClass = "bg-emerald-500 shadow-emerald-500/50";
+                    if (delivery.status === 'fallido') colorClass = "bg-rose-500 shadow-rose-500/50";
+                    if (delivery.status === 'no-contesta') colorClass = "bg-yellow-500 shadow-yellow-500/50";
+                    if (delivery.status === 'reprogramado') colorClass = "bg-violet-500 shadow-violet-500/50";
+
+                    L.marker(pos, {
+                        icon: L.divIcon({
+                            className: 'custom-div-icon',
+                            html: `<div class="w-7 h-7 rounded-full ${colorClass} text-white flex items-center justify-center font-black text-xs border-2 border-white shadow-lg">${index + 1}</div>`,
+                            iconSize: [28, 28],
+                            iconAnchor: [14, 14]
+                        })
+                    }).addTo(markersGroup).bindPopup(`<b>📦 Parada ${index + 1}:</b><br>${delivery.client}<br>${delivery.address}`);
+                }
+            });
+
+            if (appState.endCoord && appState.endAddress) {
+                const pos = [appState.endCoord.lat, appState.endCoord.lng];
+                latlngs.push(pos);
+                L.marker(pos, {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold border-2 border-white shadow-md"><i class="fa-solid fa-flag-checkered text-[10px]"></i></div>`,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    })
+                }).addTo(markersGroup).bindPopup("<b>🏠 Punto de Destino Final:</b><br>" + appState.endAddress);
+            }
+
+            if (routeLine) {
+                map.removeLayer(routeLine);
+            }
+
+            if (latlngs.length > 1) {
+                routeLine = L.polyline(latlngs, {
+                    color: '#4f46e5',
+                    weight: 4,
+                    opacity: 0.8,
+                    dashArray: '1, 6',
+                    lineJoin: 'round'
+                }).addTo(map);
+
+                map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+            }
+        }
+
+        // --- 10. GESTIÓN DE ENTREGAS (LISTADO, BÚSQUEDA Y FILTRADO) ---
+        function renderDeliveries() {
+            const container = document.getElementById('deliveriesContainer');
+            container.innerHTML = '';
+
+            const searchQuery = document.getElementById('searchQuery').value.toLowerCase().trim();
+            const filter = appState.activeStatusFilter;
+
+            const filteredList = appState.deliveries.filter((item) => {
+                const matchesSearch = item.client.toLowerCase().includes(searchQuery) || 
+                                      item.address.toLowerCase().includes(searchQuery) ||
+                                      item.district.toLowerCase().includes(searchQuery) ||
+                                      (item.reference && item.reference.toLowerCase().includes(searchQuery));
+
+                let matchesStatus = true;
+                if (filter === 'pendiente') {
+                    matchesStatus = item.status === 'pendiente';
+                } else if (filter === 'entregado') {
+                    matchesStatus = item.status === 'entregado';
+                } else if (filter === 'fallido') {
+                    matchesStatus = item.status === 'fallido';
+                } else if (filter === 'incidencias') {
+                    matchesStatus = ['no-contesta', 'reprogramado'].includes(item.status);
+                }
+
+                return matchesSearch && matchesStatus;
+            });
+
+            if (filteredList.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center p-8 text-center bg-white dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                        <i class="fa-solid fa-boxes-stacked text-3xl text-slate-300 dark:text-slate-700 mb-2"></i>
+                        <p class="text-xs text-slate-400 font-medium">No se encontraron entregas que coincidan.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            filteredList.forEach((item) => {
+                const originalIndex = appState.deliveries.indexOf(item);
+                const borderPriorityClass = item.priority === 'alta' ? 'border-l-4 border-l-amber-500' : 'border-l-4 border-l-slate-300 dark:border-l-slate-700';
+                
+                let statusBadge = '';
+                switch (item.status) {
+                    case 'pendiente':
+                        statusBadge = '<span class="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full font-bold">🟡 Pendiente</span>';
+                        break;
+                    case 'entregado':
+                        statusBadge = '<span class="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">🟢 Entregado</span>';
+                        break;
+                    case 'fallido':
+                        statusBadge = '<span class="text-[10px] bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-full font-bold">🔴 Fallido</span>';
+                        break;
+                    case 'no-contesta':
+                        statusBadge = '<span class="text-[10px] bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-2 py-0.5 rounded-full font-bold">📞 No contesta</span>';
+                        break;
+                    case 'reprogramado':
+                        statusBadge = '<span class="text-[10px] bg-violet-500/10 text-violet-600 dark:text-violet-400 px-2 py-0.5 rounded-full font-bold">🔄 Reprogramado</span>';
+                        break;
+                }
+
+                const card = document.createElement('div');
+                card.className = `bg-white dark:bg-slate-800/80 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-800/40 relative flex flex-col gap-2 ${borderPriorityClass}`;
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex gap-2 items-center">
+                            <span class="w-5 h-5 rounded-full bg-brand-500 text-white font-black text-[10px] flex items-center justify-center">${originalIndex + 1}</span>
+                            <h4 class="font-bold text-sm tracking-tight">${item.client}</h4>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            ${statusBadge}
+                            <select onchange="updateDeliveryStatus(${originalIndex}, this.value)" class="text-[11px] bg-slate-100 dark:bg-slate-700 p-1 rounded-md focus:outline-none max-w-[90px] text-slate-800 dark:text-slate-100">
+                                <option value="pendiente" ${item.status === 'pendiente' ? 'selected' : ''}>Pendiente</option>
+                                <option value="entregado" ${item.status === 'entregado' ? 'selected' : ''}>Entregado</option>
+                                <option value="fallido" ${item.status === 'fallido' ? 'selected' : ''}>Fallido</option>
+                                <option value="no-contesta" ${item.status === 'no-contesta' ? 'selected' : ''}>No contesta</option>
+                                <option value="reprogramado" ${item.status === 'reprogramado' ? 'selected' : ''}>Reprogramado</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="text-xs text-slate-500 dark:text-slate-400 flex flex-col gap-1 mt-1">
+                        <div class="flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-brand-500 shrink-0"></i> <span class="font-semibold">${item.address}, ${item.district}</span></div>
+                        ${item.reference ? `<div class="flex items-start gap-1.5 bg-slate-50 dark:bg-slate-900/40 p-2 rounded-lg border border-slate-100 dark:border-slate-800/30"><i class="fa-solid fa-info text-slate-400 shrink-0 mt-0.5"></i> <span class="text-[11px] font-medium leading-normal">${item.reference}</span></div>` : ''}
+                        <div class="flex items-center gap-3 mt-1 text-[11px]">
+                            ${item.phone ? `<span class="flex items-center gap-1"><i class="fa-solid fa-phone text-slate-400"></i> ${item.phone}</span>` : ''}
+                            ${item.amount ? `<span class="flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300"><i class="fa-solid fa-hand-holding-dollar text-emerald-500"></i> S/. ${item.amount}</span>` : ''}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between border-t border-slate-100 dark:border-slate-700/60 pt-2.5 mt-2">
+                        <div class="flex gap-1.5">
+                            <button onclick="moveUp(${originalIndex})" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 flex items-center justify-center active:scale-90 transition-transform"><i class="fa-solid fa-chevron-up text-xs"></i></button>
+                            <button onclick="moveDown(${originalIndex})" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 flex items-center justify-center active:scale-90 transition-transform"><i class="fa-solid fa-chevron-down text-xs"></i></button>
+                        </div>
+                        <div class="flex gap-1.5">
+                            <button onclick="editDelivery(${originalIndex})" class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center active:scale-90 transition-transform"><i class="fa-solid fa-pen text-xs"></i></button>
+                            <button onclick="deleteDelivery(${originalIndex})" class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center active:scale-90 transition-transform"><i class="fa-solid fa-trash text-xs"></i></button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function setStatusFilter(filter) {
+            appState.activeStatusFilter = filter;
+            const buttons = ['all', 'pendiente', 'entregado', 'fallido', 'incidencias'];
+            buttons.forEach(btn => {
+                const el = document.getElementById(`filterBtn_${btn}`);
+                if (btn === filter) {
+                    el.className = "px-3 py-1.5 rounded-full text-[10px] font-bold transition-all bg-brand-500 text-white";
+                } else {
+                    el.className = "px-3 py-1.5 rounded-full text-[10px] font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300";
+                }
+            });
+            renderDeliveries();
+        }
+
+        function applyFilters() {
+            renderDeliveries();
+        }
+
+        function updateStartEnd() {
+            appState.startAddress = document.getElementById('startAddress').value;
+            appState.endAddress = document.getElementById('endAddress').value;
+            saveToStorage();
+        }
+
+        // --- 11. SISTEMA DE REORDENAMIENTO ---
+        function moveUp(index) {
+            if (index > 0) {
+                const temp = appState.deliveries[index];
+                appState.deliveries[index] = appState.deliveries[index - 1];
+                appState.deliveries[index - 1] = temp;
+                saveToStorage();
+                renderDeliveries();
+                calculateStats();
+                drawRouteOnMap();
+            }
+        }
+
+        function moveDown(index) {
+            if (index < appState.deliveries.length - 1) {
+                const temp = appState.deliveries[index];
+                appState.deliveries[index] = appState.deliveries[index + 1];
+                appState.deliveries[index + 1] = temp;
+                saveToStorage();
+                renderDeliveries();
+                calculateStats();
+                drawRouteOnMap();
+            }
+        }
+
+        // --- 12. CRUD ACCIONES ---
+        function openAddDeliveryModal() {
+            document.getElementById('modalTitle').innerText = "Agregar Entrega";
+            document.getElementById('editIndex').value = "-1";
+            document.getElementById('deliveryForm').reset();
+            
+            const modal = document.getElementById('deliveryModal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.firstElementChild.classList.remove('translate-y-8');
+        }
+
+        function closeDeliveryModal() {
+            const modal = document.getElementById('deliveryModal');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.firstElementChild.classList.add('translate-y-8');
+        }
+
+        function saveDeliveryForm(e) {
+            e.preventDefault();
+            
+            const editIdx = parseInt(document.getElementById('editIndex').value);
+            const deliveryData = {
+                client: document.getElementById('formCliente').value,
+                phone: document.getElementById('formTelefono').value,
+                district: document.getElementById('formDistrito').value,
+                amount: parseFloat(document.getElementById('formMonto').value) || 0,
+                address: document.getElementById('formDireccion').value,
+                priority: document.getElementById('formPrioridad').value,
+                status: document.getElementById('formEstado').value,
+                reference: document.getElementById('formReferencia').value,
+                lat: editIdx !== -1 ? appState.deliveries[editIdx].lat : null,
+                lng: editIdx !== -1 ? appState.deliveries[editIdx].lng : null
+            };
+
+            if (editIdx === -1) {
+                appState.deliveries.push(deliveryData);
+                setAssistantMessage("🎯 Nueva entrega registrada con éxito");
+            } else {
+                appState.deliveries[editIdx] = deliveryData;
+                setAssistantMessage("✏️ Entrega modificada correctamente");
+            }
+
+            saveToStorage();
+            closeDeliveryModal();
+            renderDeliveries();
+            calculateStats();
+            drawRouteOnMap();
+        }
+
+        function editDelivery(index) {
+            const item = appState.deliveries[index];
+            document.getElementById('modalTitle').innerText = "Editar Entrega";
+            document.getElementById('editIndex').value = index;
+            
+            document.getElementById('formCliente').value = item.client;
+            document.getElementById('formTelefono').value = item.phone || '';
+            document.getElementById('formDistrito').value = item.district;
+            document.getElementById('formMonto').value = item.amount || '';
+            document.getElementById('formDireccion').value = item.address;
+            document.getElementById('formPrioridad').value = item.priority;
+            document.getElementById('formEstado').value = item.status;
+            document.getElementById('formReferencia').value = item.reference || '';
+
+            const modal = document.getElementById('deliveryModal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.firstElementChild.classList.remove('translate-y-8');
+        }
+
+        function deleteDelivery(index) {
+            if (confirm("¿Estás seguro de eliminar esta parada de la secuencia?")) {
+                appState.deliveries.splice(index, 1);
+                saveToStorage();
+                renderDeliveries();
+                calculateStats();
+                drawRouteOnMap();
+                setAssistantMessage("🗑️ Parada eliminada de la ruta");
+            }
+        }
+
+        function updateDeliveryStatus(index, newStatus) {
+            appState.deliveries[index].status = newStatus;
+            saveToStorage();
+            calculateStats();
+            drawRouteOnMap();
+            renderDeliveries();
+            setAssistantMessage(`Estado cambiado: ${newStatus}`);
+        }
+
+        // --- 13. IMPORTACIÓN DE EXCEL REAL / JSON ---
+        function importExcel(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(firstSheet);
+
+                let parsedCount = 0;
+
+                rows.forEach(row => {
+                    // Extraer los campos correspondientes a las columnas reales del Excel de entrada
+                    const rawClient = (row['Recipient Name'] || '').toString().trim();
+                    const rawAddress = (row['Address Line 1'] || '').toString().trim();
+                    const rawDistrict = (row['City'] || '').toString().trim();
+                    const rawPhone = (row['Phone'] || '').toString().trim();
+                    const rawNotes = (row['Notes'] || '').toString().trim();
+
+                    // Omitir filas sin cliente ni dirección (evitar filas vacías accidentales)
+                    if (!rawClient && !rawAddress) return;
+
+                    // Análisis sintáctico del campo "Notes" para extraer producto, costo y observaciones
+                    let parsedProduct = '';
+                    let parsedCost = 0;
+
+                    if (rawNotes) {
+                        // Buscar patrón "Producto: [Nombre]" o "Product: [Nombre]"
+                        const productMatch = rawNotes.match(/(?:Producto|Product|Prod):\s*([^|]+)/i);
+                        if (productMatch) {
+                            parsedProduct = productMatch[1].trim();
+                        }
+
+                        // Buscar patrón de costos "Costo: S/ [Num]" o "Cost: [Num]" o "S/ [Num]"
+                        const costMatch = rawNotes.match(/(?:Costo|Cost|S\/)\s*:?\s*(?:S\/\s*)?([\d.,]+)/i);
+                        if (costMatch) {
+                            parsedCost = parseFloat(costMatch[1].replace(',', '.'));
+                        }
+                    }
+
+                    // Armar la descripción visual para la tarjeta
+                    let finalReference = rawNotes;
+                    if (parsedProduct) {
+                        finalReference = `📦 Prod: ${parsedProduct} | ${rawNotes}`;
+                    }
+
+                    appState.deliveries.push({
+                        client: rawClient,
+                        phone: rawPhone,
+                        address: rawAddress,
+                        district: rawDistrict,
+                        reference: finalReference,
+                        amount: parsedCost || 0,
+                        priority: 'normal',
+                        status: 'pendiente',
+                        lat: null,
+                        lng: null
+                    });
+                    
+                    parsedCount++;
+                });
+
+                saveToStorage();
+                renderDeliveries();
+                calculateStats();
+                drawRouteOnMap();
+                setAssistantMessage(`📂 ¡Importadas con éxito ${parsedCount} entregas reales desde Excel!`);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function importJSON(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    const items = Array.isArray(data) ? data : [data];
+                    let parsedCount = 0;
+                    
+                    items.forEach(item => {
+                        // Permitir compatibilidad tanto con el esquema estándar como con el del Excel mapeado
+                        const rawClient = item.client || item.cliente || item['Recipient Name'] || '';
+                        const rawAddress = item.address || item.direccion || item['Address Line 1'] || '';
+                        const rawDistrict = item.district || item.distrito || item['City'] || '';
+                        const rawPhone = item.phone || item.telefono || item['Phone'] || '';
+                        const rawNotes = item.reference || item.referencia || item.notes || item['Notes'] || '';
+                        const rawAmount = parseFloat(item.amount || item.monto) || 0;
+
+                        if (!rawClient && !rawAddress) return;
+
+                        appState.deliveries.push({
+                            client: rawClient,
+                            phone: rawPhone,
+                            address: rawAddress,
+                            district: rawDistrict,
+                            reference: rawNotes,
+                            amount: rawAmount,
+                            priority: item.priority || 'normal',
+                            status: 'pendiente',
+                            lat: null,
+                            lng: null
+                        });
+                        parsedCount++;
+                    });
+
+                    saveToStorage();
+                    renderDeliveries();
+                    calculateStats();
+                    drawRouteOnMap();
+                    setAssistantMessage(`📂 ¡Se importaron con éxito ${parsedCount} entregas JSON!`);
+                } catch (err) {
+                    alert("Error parseando el archivo JSON");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- 14. EXPORTAR A NAVEGADORES EXTERNOS ---
+        function openInGoogleMaps() {
+            if (appState.deliveries.length === 0) {
+                alert("Primero agrega entregas a la lista.");
+                return;
+            }
+
+            const origin = `${appState.startCoord.lat},${appState.startCoord.lng}`;
+            let dest = '';
+            let waypoints = [];
+
+            if (appState.endCoord && appState.endAddress) {
+                dest = `${appState.endCoord.lat},${appState.endCoord.lng}`;
+                waypoints = appState.deliveries.map(d => `${d.lat},${d.lng}`);
+            } else {
+                const len = appState.deliveries.length;
+                dest = `${appState.deliveries[len - 1].lat},${appState.deliveries[len - 1].lng}`;
+                waypoints = appState.deliveries.slice(0, -1).map(d => `${d.lat},${d.lng}`);
+            }
+
+            const waypointsStr = waypoints.join('|');
+            const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}&waypoints=${encodeURIComponent(waypointsStr)}&travelmode=driving`;
+            window.open(mapsUrl, '_blank');
+        }
+
+        function openInWaze() {
+            const pendingDeliveries = appState.deliveries.filter(d => d.status === 'pendiente');
+            if (pendingDeliveries.length === 0) {
+                alert("No hay paradas pendientes para navegar hoy.");
+                return;
+            }
+
+            const nextStop = pendingDeliveries[0];
+            const wazeUrl = `https://waze.com/ul?ll=${nextStop.lat},${nextStop.lng}&navigate=yes`;
+            window.open(wazeUrl, '_blank');
+        }
+
+        // --- 15. SISTEMA DE HISTORIAL Y GUARDADO ---
+        function finishAndArchiveRoute() {
+            if (appState.deliveries.length === 0) {
+                alert("No hay entregas activas en la ruta para archivar.");
+                return;
+            }
+
+            if (confirm("¿Quieres marcar esta ruta como completada, archivarla y limpiar el tablero de hoy?")) {
+                const completedCount = appState.deliveries.filter(d => d.status === 'entregado').length;
+                const newHistoryItem = {
+                    date: new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+                    stopsCount: appState.deliveries.length,
+                    completedCount: completedCount,
+                    distance: appState.routeStats.distance,
+                    cash: appState.routeStats.collections,
+                    fuel: appState.routeStats.fuel
+                };
+
+                appState.history.unshift(newHistoryItem);
+                appState.deliveries = [];
+                
+                saveToStorage();
+                renderDeliveries();
+                calculateStats();
+                drawRouteOnMap();
+                renderHistory();
+                switchTab('history');
+                
+                setAssistantMessage("🏁 ¡Felicidades! Ruta finalizada y guardada en el historial.");
+            }
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('historyContainer');
+            container.innerHTML = '';
+
+            let globalRoutes = appState.history.length;
+            let globalKms = 0;
+            let globalDeliveries = 0;
+
+            appState.history.forEach(item => {
+                globalKms += item.distance || 0;
+                globalDeliveries += item.completedCount || 0;
+            });
+
+            document.getElementById('histTotalRoutes').innerText = globalRoutes;
+            document.getElementById('histTotalKms').innerText = `${globalKms.toFixed(1)} km`;
+            document.getElementById('histTotalDeliveries').innerText = globalDeliveries;
+
+            if (appState.history.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center p-8 text-center bg-white dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                        <i class="fa-solid fa-clock-rotate-left text-3xl text-slate-300 dark:text-slate-700 mb-2"></i>
+                        <p class="text-xs text-slate-400 font-medium">No hay registros de rutas guardadas anteriormente.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            appState.history.forEach((item) => {
+                const card = document.createElement('div');
+                card.className = "bg-white dark:bg-slate-800/80 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-800/40 flex flex-col gap-2";
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                                <i class="fa-solid fa-route text-sm"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-xs">Ruta - ${item.date}</h4>
+                                <p class="text-[10px] text-slate-400 font-medium">${item.completedCount} de ${item.stopsCount} paradas completadas</p>
+                            </div>
+                        </div>
+                        <span class="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">Completada</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/60 text-center">
+                        <div>
+                            <p class="text-[8px] uppercase tracking-wider text-slate-400 font-bold">Distancia</p>
+                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200">${item.distance} km</p>
+                        </div>
+                        <div>
+                            <p class="text-[8px] uppercase tracking-wider text-slate-400 font-bold">Monto Cobrado</p>
+                            <p class="text-xs font-bold text-emerald-600">S/. ${item.cash.toFixed(1)}</p>
+                        </div>
+                        <div>
+                            <p class="text-[8px] uppercase tracking-wider text-slate-400 font-bold">Consumo</p>
+                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200">${item.fuel} L</p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function clearHistory() {
+            if (confirm("¿Estás seguro de que deseas eliminar permanentemente todo el historial de rutas?")) {
+                appState.history = [];
+                saveToStorage();
+                renderHistory();
+                setAssistantMessage("🗑️ Historial de rutas borrado.");
+            }
+        }
+
+        // --- 16. PERSISTENCIA EN LOCALSTORAGE ---
+        function saveToStorage() {
+            localStorage.setItem('circuit_lite_state', JSON.stringify({
+                deliveries: appState.deliveries,
+                startAddress: appState.startAddress,
+                endAddress: appState.endAddress,
+                startCoord: appState.startCoord,
+                endCoord: appState.endCoord,
+                history: appState.history
+            }));
+        }
+
+        function loadFromStorage() {
+            const data = localStorage.getItem('circuit_lite_state');
+            if (data) {
+                const parsed = JSON.parse(data);
+                appState.deliveries = parsed.deliveries || [];
+                appState.startAddress = parsed.startAddress || 'Plaza Mayor, Cercado de Lima';
+                appState.endAddress = parsed.endAddress || 'Miraflores, Lima';
+                appState.startCoord = parsed.startCoord || { lat: -12.046374, lng: -77.042793 };
+                appState.endCoord = parsed.endCoord || { lat: -12.111058, lng: -77.031584 };
+                appState.history = parsed.history || [];
+
+                document.getElementById('startAddress').value = appState.startAddress;
+                document.getElementById('endAddress').value = appState.endAddress;
+            } else {
+                // Datos demo para inicialización por primera vez
+                appState.deliveries = [
+                    { client: "Aldo Coppo", phone: "987654321", address: "Calle las viñas 176 dpto 101 urb aurora", district: "Miraflores", reference: "📦 Prod: NeckSupport | Nota: Dejar en portería si no responde", amount: 69.9, priority: "alta", status: "pendiente", lat: -12.12154, lng: -77.02987 },
+                    { client: "María Rojas", phone: "912345678", address: "Av. Petit Thouars 1250", district: "Cercado de Lima", reference: "Piso 4 Oficina 402", amount: 45.0, priority: "normal", status: "pendiente", lat: -12.07223, lng: -77.03542 },
+                    { client: "Farmacia San Juan", phone: "945612378", address: "Av. Javier Prado Este 2500", district: "San Borja", reference: "Frente al centro comercial", amount: 0, priority: "normal", status: "pendiente", lat: -12.08643, lng: -77.00124 }
+                ];
+                appState.history = [
+                    { date: "24 de May, 08:30", stopsCount: 4, completedCount: 4, distance: 15.4, cash: 245.0, fuel: 0.4 },
+                    { date: "22 de May, 09:15", stopsCount: 5, completedCount: 4, distance: 18.2, cash: 310.0, fuel: 0.5 }
+                ];
+                saveToStorage();
+            }
+        }
+
+        // --- 17. CONTROL DE NAVEGACIÓN (TABS PANELS) ---
+        function switchTab(tabId) {
+            appState.currentTab = tabId;
+
+            document.getElementById('viewHome').classList.add('hidden');
+            document.getElementById('viewDeliveries').classList.add('hidden');
+            document.getElementById('viewHistory').classList.add('hidden');
+
+            if (tabId === 'home') {
+                document.getElementById('viewHome').classList.remove('hidden');
+                setTimeout(() => { if (map) map.invalidateSize(); }, 200);
+            } else if (tabId === 'deliveries') {
+                document.getElementById('viewDeliveries').classList.remove('hidden');
+                renderDeliveries(); 
+            } else if (tabId === 'history') {
+                document.getElementById('viewHistory').classList.remove('hidden');
+                renderHistory();
+            }
+
+            const tabs = ['home', 'deliveries', 'history'];
+            tabs.forEach(tab => {
+                const buttonElement = document.getElementById(`tab${capitalize(tab)}`);
+                if (tab === tabId) {
+                    buttonElement.className = 'flex flex-col items-center gap-0.5 text-brand-500 transition-colors';
+                } else {
+                    buttonElement.className = 'flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors';
+                }
+            });
+        }
+
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        // --- 18. BOT ASISTENTE FLOTANTE ---
+        let assistantTimeout;
+        function toggleAssistant() {
+            const bubble = document.getElementById('assistantBubble');
+            bubble.classList.toggle('hidden');
+        }
+
+        function setAssistantMessage(text) {
+            const bubble = document.getElementById('assistantBubble');
+            bubble.innerText = text;
+            bubble.classList.remove('hidden');
+
+            clearTimeout(assistantTimeout);
+            assistantTimeout = setTimeout(() => {
+                bubble.classList.add('opacity-0');
+                setTimeout(() => {
+                    bubble.classList.add('hidden');
+                    bubble.classList.remove('opacity-0');
+                }, 300);
+            }, 6000);
+        }
+
+        function triggerAssistantRandomTip() {
+            const tips = [
+                "¡Buenas rutas hoy! Conduce con seguridad 🚚",
+                "Optimizar tu itinerario reduce el consumo de combustible ⛽",
+                "Puedes cambiar el orden usando los botones de subir/bajar de las tarjetas.",
+                "Haz clic en 'Abrir Google Maps' para mandar toda la ruta de reparto directo a tu móvil.",
+                "En la pestaña 'Historial' puedes archivar tu jornada diaria y ver tus Kms totales."
+            ];
+            
+            setInterval(() => {
+                const randomTip = tips[Math.floor(Math.random() * tips.length)];
+                setAssistantMessage(randomTip);
+            }, 30000);
+        }
+    </script>
+</body>
+</html>
