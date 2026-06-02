@@ -42,6 +42,9 @@ jobs:
       - name: Initialize Capacitor
         run: npx cap init RiderTrack com.ridertrack.app --web-dir www
 
+      - name: Remove existing android folder if present
+        run: rm -rf android
+
       - name: Add Android platform
         run: npx cap add android
 
@@ -63,7 +66,7 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Generate debug keystore
+      - name: Generate keystore
         run: |
           keytool -genkeypair \
             -keystore debug.keystore \
@@ -93,11 +96,6 @@ jobs:
             --out RiderTrack-v1.0.apk \
             RiderTrack-aligned.apk
 
-      - name: Verify APK signature
-        run: |
-          APKSIGNER=$(find $ANDROID_SDK_ROOT -name "apksigner" | head -1)
-          $APKSIGNER verify --verbose RiderTrack-v1.0.apk
-
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
@@ -108,54 +106,4 @@ jobs:
       - name: Show APK info
         run: |
           echo "âœ… APK firmado y listo"
-          echo "ðŸ“¦ TamaÃ±o: $(du -sh RiderTrack-v1.0.apk | cut -f1)"          # Copiar otros archivos HTML si existen
-          [ -f clientetrack.html ] && cp clientetrack.html www/clientetrack.html || true
-          [ -f navegar.html ]      && cp navegar.html www/navegar.html           || true
-          # Copiar imÃ¡genes y recursos
-          find . -maxdepth 1 \( -name "*.png" -o -name "*.jpg" -o -name "*.webp" -o -name "*.svg" \) \
-            ! -path "./.git/*" -exec cp {} www/ \; 2>/dev/null || true
-
-      - name: Initialize Capacitor
-        run: npx cap init RiderTrack com.ridertrack.app --web-dir www
-
-      - name: Add Android platform
-        run: npx cap add android
-
-      - name: Copy web assets to Android
-        run: npx cap copy android
-
-      - name: Sync Capacitor plugins
-        run: npx cap sync android
-
-      - name: Update AndroidManifest permissions
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          # Insertar permisos antes de <application
-          sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <application|' "$MANIFEST"
-
-      - name: Set Gradle permissions
-        run: |
-          chmod +x android/gradlew
-
-      - name: Build Debug APK
-        working-directory: android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
-
-      - name: Rename APK
-        run: |
-          mkdir -p output
-          cp android/app/build/outputs/apk/debug/app-debug.apk \
-             output/RiderTrack-v1.0.apk
-
-      - name: Upload APK as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: RiderTrack-APK
-          path: output/RiderTrack-v1.0.apk
-          retention-days: 30
-
-      - name: Show APK info
-        run: |
-          echo "âœ… APK generado exitosamente"
-          echo "ðŸ“¦ TamaÃ±o: $(du -sh output/RiderTrack-v1.0.apk | cut -f1)"
-          echo "ðŸ“¥ DescÃ¡rgalo desde la pestaÃ±a Actions > Artifacts"
+          echo "ðŸ“¦ TamaÃ±o: $(du -sh RiderTrack-v1.0.apk | cut -f1)"
