@@ -55,32 +55,17 @@ jobs:
         run: npx cap sync android
 
       - name: Copy google-services.json
-        run: |
-          cp google-services.json android/app/google-services.json
-          echo "âœ… google-services.json copiado"
+        run: cp google-services.json android/app/google-services.json
 
       - name: Register GoogleAuth plugin in MainActivity
         run: |
           MAIN="android/app/src/main/java/com/ridertrack/app/MainActivity.java"
-          cat > "$MAIN" << 'JAVA'
-          package com.ridertrack.app;
-          import android.os.Bundle;
-          import com.codetrix.capacitorgoogleauth.GoogleAuth;
-          import com.getcapacitor.BridgeActivity;
-          public class MainActivity extends BridgeActivity {
-            @Override
-            public void onCreate(Bundle savedInstanceState) {
-              registerPlugin(GoogleAuth.class);
-              super.onCreate(savedInstanceState);
-            }
-          }
-          JAVA
-          echo "âœ… MainActivity actualizado con GoogleAuth"
+          printf 'package com.ridertrack.app;\nimport android.os.Bundle;\nimport com.codetrix.capacitorgoogleauth.GoogleAuth;\nimport com.getcapacitor.BridgeActivity;\npublic class MainActivity extends BridgeActivity {\n  @Override\n  public void onCreate(Bundle savedInstanceState) {\n    registerPlugin(GoogleAuth.class);\n    super.onCreate(savedInstanceState);\n  }\n}\n' > "$MAIN"
 
       - name: Update AndroidManifest permissions
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <application|' "$MANIFEST"
+          sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <application|' "$MANIFEST"
 
       - name: Set Gradle permissions
         run: chmod +x android/gradlew
@@ -101,7 +86,7 @@ jobs:
             -keypass ridertrack123 \
             -dname "CN=RiderTrack, OU=Dev, O=RiderTrack, L=Lima, S=Lima, C=PE"
 
-      - name: ðŸ”‘ Show SHA-1
+      - name: Show SHA-1
         run: |
           echo "===== SHA-1 FINGERPRINT ====="
           keytool -list -v \
@@ -137,5 +122,5 @@ jobs:
 
       - name: Show APK info
         run: |
-          echo "âœ… APK firmado y listo"
-          echo "ðŸ“¦ TamaÃ±o: $(du -sh RiderTrack-v1.0.apk | cut -f1)"
+          echo "APK firmado y listo"
+          du -sh RiderTrack-v1.0.apk
