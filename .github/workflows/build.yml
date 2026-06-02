@@ -54,6 +54,11 @@ jobs:
       - name: Sync Capacitor plugins
         run: npx cap sync android
 
+      - name: Copy google-services.json
+        run: |
+          cp google-services.json android/app/google-services.json
+          echo "âœ… google-services.json copiado"
+
       - name: Update AndroidManifest permissions
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
