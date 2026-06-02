@@ -35,9 +35,8 @@ jobs:
           mkdir -p www
           cp index.html www/index.html
           [ -f clientetrack.html ] && cp clientetrack.html www/clientetrack.html || true
-          [ -f navegar.html ]      && cp navegar.html www/navegar.html           || true
-          find . -maxdepth 1 \( -name "*.png" -o -name "*.jpg" -o -name "*.webp" -o -name "*.svg" \) \
-            ! -path "./.git/*" -exec cp {} www/ \; 2>/dev/null || true
+          [ -f navegar.html ] && cp navegar.html www/navegar.html || true
+          find . -maxdepth 1 \( -name "*.png" -o -name "*.jpg" -o -name "*.webp" -o -name "*.svg" \) ! -path "./.git/*" -exec cp {} www/ \; 2>/dev/null || true
 
       - name: Initialize Capacitor
         run: npx cap init RiderTrack com.ridertrack.app --web-dir www
@@ -59,23 +58,18 @@ jobs:
 
       - name: Register GoogleAuth plugin in MainActivity
         run: |
-          python3 - << 'PYEOF'
-          content = """package com.ridertrack.app;
-import android.os.Bundle;
-import com.codetrix.capacitorgoogleauth.GoogleAuth;
-import com.getcapacitor.BridgeActivity;
-public class MainActivity extends BridgeActivity {
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(GoogleAuth.class);
-        super.onCreate(savedInstanceState);
-    }
-}
-"""
-          with open("android/app/src/main/java/com/ridertrack/app/MainActivity.java", "w") as f:
-              f.write(content)
-          print("MainActivity.java written OK")
-          PYEOF
+          MAIN="android/app/src/main/java/com/ridertrack/app/MainActivity.java"
+          echo 'package com.ridertrack.app;' > "$MAIN"
+          echo 'import android.os.Bundle;' >> "$MAIN"
+          echo 'import com.codetrix.capacitorgoogleauth.GoogleAuth;' >> "$MAIN"
+          echo 'import com.getcapacitor.BridgeActivity;' >> "$MAIN"
+          echo 'public class MainActivity extends BridgeActivity {' >> "$MAIN"
+          echo '    @Override' >> "$MAIN"
+          echo '    public void onCreate(Bundle savedInstanceState) {' >> "$MAIN"
+          echo '        registerPlugin(GoogleAuth.class);' >> "$MAIN"
+          echo '        super.onCreate(savedInstanceState);' >> "$MAIN"
+          echo '    }' >> "$MAIN"
+          echo '}' >> "$MAIN"
 
       - name: Update AndroidManifest permissions
         run: |
@@ -102,29 +96,17 @@ public class MainActivity extends BridgeActivity {
             -dname "CN=RiderTrack, OU=Dev, O=RiderTrack, L=Lima, S=Lima, C=PE"
 
       - name: Show SHA-1
-        run: |
-          keytool -list -v \
-            -keystore debug.keystore \
-            -alias ridertrack \
-            -storepass ridertrack123 | grep "SHA1:"
+        run: keytool -list -v -keystore debug.keystore -alias ridertrack -storepass ridertrack123 | grep "SHA1:"
 
       - name: Zipalign APK
         run: |
           ZIPALIGN=$(find $ANDROID_SDK_ROOT -name "zipalign" | head -1)
-          $ZIPALIGN -v -p 4 \
-            android/app/build/outputs/apk/debug/app-debug.apk \
-            RiderTrack-aligned.apk
+          $ZIPALIGN -v -p 4 android/app/build/outputs/apk/debug/app-debug.apk RiderTrack-aligned.apk
 
       - name: Sign APK
         run: |
           APKSIGNER=$(find $ANDROID_SDK_ROOT -name "apksigner" | head -1)
-          $APKSIGNER sign \
-            --ks debug.keystore \
-            --ks-key-alias ridertrack \
-            --ks-pass pass:ridertrack123 \
-            --key-pass pass:ridertrack123 \
-            --out RiderTrack-v1.0.apk \
-            RiderTrack-aligned.apk
+          $APKSIGNER sign --ks debug.keystore --ks-key-alias ridertrack --ks-pass pass:ridertrack123 --key-pass pass:ridertrack123 --out RiderTrack-v1.0.apk RiderTrack-aligned.apk
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
