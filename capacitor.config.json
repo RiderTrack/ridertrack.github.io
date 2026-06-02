@@ -1,0 +1,34 @@
+{
+  "appId": "com.ridertrack.app",
+  "appName": "RiderTrack",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "Geolocation": {
+      "permissions": ["location", "coarseLocation"]
+    },
+    "Camera": {
+      "permissions": ["camera", "photos"]
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon_config_sample",
+      "iconColor": "#7B2CBF",
+      "sound": "beep.wav"
+    },
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "launchAutoHide": true,
+      "backgroundColor": "#0d0d1a",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false
+    }
+  }
+}
