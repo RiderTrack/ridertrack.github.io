@@ -56,21 +56,6 @@ jobs:
       - name: Copy google-services.json
         run: cp google-services.json android/app/google-services.json
 
-      - name: Register GoogleAuth plugin in MainActivity
-        run: |
-          MAIN="android/app/src/main/java/com/ridertrack/app/MainActivity.java"
-          echo 'package com.ridertrack.app;' > "$MAIN"
-          echo 'import android.os.Bundle;' >> "$MAIN"
-          echo 'import com.codetrix.capacitorgoogleauth.GoogleAuth;' >> "$MAIN"
-          echo 'import com.getcapacitor.BridgeActivity;' >> "$MAIN"
-          echo 'public class MainActivity extends BridgeActivity {' >> "$MAIN"
-          echo '    @Override' >> "$MAIN"
-          echo '    public void onCreate(Bundle savedInstanceState) {' >> "$MAIN"
-          echo '        registerPlugin(GoogleAuth.class);' >> "$MAIN"
-          echo '        super.onCreate(savedInstanceState);' >> "$MAIN"
-          echo '    }' >> "$MAIN"
-          echo '}' >> "$MAIN"
-
       - name: Update AndroidManifest permissions
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
