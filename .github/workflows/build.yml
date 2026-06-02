@@ -78,6 +78,15 @@ jobs:
             -keypass ridertrack123 \
             -dname "CN=RiderTrack, OU=Dev, O=RiderTrack, L=Lima, S=Lima, C=PE"
 
+      - name: ðŸ”‘ Show SHA-1 (necesario para Google Sign-In)
+        run: |
+          echo "===== SHA-1 FINGERPRINT ====="
+          keytool -list -v \
+            -keystore debug.keystore \
+            -alias ridertrack \
+            -storepass ridertrack123 | grep "SHA1:"
+          echo "============================="
+
       - name: Zipalign APK
         run: |
           ZIPALIGN=$(find $ANDROID_SDK_ROOT -name "zipalign" | head -1)
