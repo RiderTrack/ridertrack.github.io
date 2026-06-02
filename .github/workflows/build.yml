@@ -59,8 +59,23 @@ jobs:
 
       - name: Register GoogleAuth plugin in MainActivity
         run: |
-          MAIN="android/app/src/main/java/com/ridertrack/app/MainActivity.java"
-          printf 'package com.ridertrack.app;\nimport android.os.Bundle;\nimport com.codetrix.capacitorgoogleauth.GoogleAuth;\nimport com.getcapacitor.BridgeActivity;\npublic class MainActivity extends BridgeActivity {\n  @Override\n  public void onCreate(Bundle savedInstanceState) {\n    registerPlugin(GoogleAuth.class);\n    super.onCreate(savedInstanceState);\n  }\n}\n' > "$MAIN"
+          python3 - << 'PYEOF'
+          content = """package com.ridertrack.app;
+import android.os.Bundle;
+import com.codetrix.capacitorgoogleauth.GoogleAuth;
+import com.getcapacitor.BridgeActivity;
+public class MainActivity extends BridgeActivity {
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(GoogleAuth.class);
+        super.onCreate(savedInstanceState);
+    }
+}
+"""
+          with open("android/app/src/main/java/com/ridertrack/app/MainActivity.java", "w") as f:
+              f.write(content)
+          print("MainActivity.java written OK")
+          PYEOF
 
       - name: Update AndroidManifest permissions
         run: |
@@ -88,12 +103,10 @@ jobs:
 
       - name: Show SHA-1
         run: |
-          echo "===== SHA-1 FINGERPRINT ====="
           keytool -list -v \
             -keystore debug.keystore \
             -alias ridertrack \
             -storepass ridertrack123 | grep "SHA1:"
-          echo "============================="
 
       - name: Zipalign APK
         run: |
@@ -121,6 +134,4 @@ jobs:
           retention-days: 30
 
       - name: Show APK info
-        run: |
-          echo "APK firmado y listo"
-          du -sh RiderTrack-v1.0.apk
+        run: du -sh RiderTrack-v1.0.apk
