@@ -59,6 +59,24 @@ jobs:
           cp google-services.json android/app/google-services.json
           echo "âœ… google-services.json copiado"
 
+      - name: Register GoogleAuth plugin in MainActivity
+        run: |
+          MAIN="android/app/src/main/java/com/ridertrack/app/MainActivity.java"
+          cat > "$MAIN" << 'JAVA'
+          package com.ridertrack.app;
+          import android.os.Bundle;
+          import com.codetrix.capacitorgoogleauth.GoogleAuth;
+          import com.getcapacitor.BridgeActivity;
+          public class MainActivity extends BridgeActivity {
+            @Override
+            public void onCreate(Bundle savedInstanceState) {
+              registerPlugin(GoogleAuth.class);
+              super.onCreate(savedInstanceState);
+            }
+          }
+          JAVA
+          echo "âœ… MainActivity actualizado con GoogleAuth"
+
       - name: Update AndroidManifest permissions
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
@@ -83,7 +101,7 @@ jobs:
             -keypass ridertrack123 \
             -dname "CN=RiderTrack, OU=Dev, O=RiderTrack, L=Lima, S=Lima, C=PE"
 
-      - name: ðŸ”‘ Show SHA-1 (necesario para Google Sign-In)
+      - name: ðŸ”‘ Show SHA-1
         run: |
           echo "===== SHA-1 FINGERPRINT ====="
           keytool -list -v \
