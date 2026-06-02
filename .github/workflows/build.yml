@@ -56,6 +56,11 @@ jobs:
       - name: Copy google-services.json
         run: cp google-services.json android/app/google-services.json
 
+      - name: Add Google Auth dependency to app build.gradle
+        run: |
+          GRADLE="android/app/build.gradle"
+          sed -i '/dependencies {/a\    implementation "com.google.android.gms:play-services-auth:20.7.0"' "$GRADLE"
+
       - name: Update AndroidManifest permissions
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
