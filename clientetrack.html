@@ -4699,7 +4699,7 @@ window.llamarCliente = function(phone){
 // ── AGENDA DE REPROGRAMADOS ───────────────────────────────────
 window.abrirAgendaReprog = function(){
   var reprog = (state.clients||[]).filter(function(c){
-    return c.status === 'reprogramado' && c.reprogFecha;
+    return (c.status||'').toLowerCase() === 'reprogramado';
   });
 
   var prev = document.getElementById('agenda-reprog-panel');
@@ -4727,7 +4727,7 @@ window.abrirAgendaReprog = function(){
   var manana = new Date(Date.now()+86400000).toLocaleDateString('es-PE');
   var grupos = {};
   reprog.forEach(function(c){
-    var f = c.reprogFecha || 'Sin fecha';
+    var f = c.reprogFecha || 'Sin fecha asignada';
     if(!grupos[f]) grupos[f] = [];
     grupos[f].push(c);
   });
@@ -4781,7 +4781,7 @@ window.abrirAgendaReprog = function(){
   setTimeout(function(){
     var hoy = new Date().toLocaleDateString('es-PE');
     var reprogHoy = (state.clients||[]).filter(function(c){
-      return c.status==='reprogramado' && c.reprogFecha===hoy;
+      return (c.status||'').toLowerCase()==='reprogramado' && c.reprogFecha && c.reprogFecha===hoy;
     });
     if(reprogHoy.length > 0){
       showToast('🗓️ Hoy tienes '+reprogHoy.length+' reprogramado'+(reprogHoy.length>1?'s':'')+' pendiente'+(reprogHoy.length>1?'s':''));
