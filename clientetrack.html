@@ -1877,7 +1877,10 @@ function renderClients() {
       (c.name || '').toLowerCase().includes(q) ||
       (c.product || '').toLowerCase().includes(q) ||
       (c.district || '').toLowerCase().includes(q);
-    const matchStatus = activeFilter === 'Todos' || c.status === activeFilter ||
+    const cStatus = (c.status||'').toLowerCase();
+    const matchStatus = activeFilter === 'Todos' || 
+      c.status === activeFilter ||
+      (activeFilter === 'Reprogramado' && (cStatus === 'reprogramado' || cStatus === 'reprogramar')) ||
       (activeFilter === '_mz' && c.tipDir === 'mz') ||
       (activeFilter === '_ref' && c.tipDir === 'ref');
     return matchSearch && matchStatus;
