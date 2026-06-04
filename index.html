@@ -624,7 +624,7 @@ document.addEventListener("DOMContentLoaded",function(){
         <span id="avTxtM">RA</span>
       </div>
       <div style="flex:1;min-width:0">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:1px;color:#fff" id="menuNombre">Repartidor</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:1px;color:#fff" id="menuNombre">Rudy Alen</div>
         <div style="font-size:0.62rem;color:rgba(255,255,255,0.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="menuEmail"></div>
         <div style="font-size:0.62rem;color:rgba(255,255,255,0.6)" id="mFecha"></div>
       </div>
@@ -2417,14 +2417,7 @@ function dlCircuit(){
   var out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
   var blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   var nom='Circuit_'+new Date().toLocaleDateString('es-PE').replace(/\//g,'-')+'.xlsx';
-  // Circuit siempre comparte — nunca descarga directa
-  var file=new File([blob],nom,{type:blob.type});
-  if(navigator.canShare&&navigator.canShare({files:[file]})){
-    navigator.share({files:[file],title:'RiderTrack — '+nom,text:'Exportación Circuit desde RiderTrack'})
-      .catch(function(e){ if(e.name!=='AbortError') descargaDirecta(blob,nom); });
-  } else {
-    descargaDirecta(blob,nom);
-  }
+  compartirArchivo(blob,nom,'Exportación Circuit desde RiderTrack');
 }
 function dlBackupDirecto(){
   var d={v:3,fecha:new Date().toISOString(),cl:D.cl,hist:D.hist,bib:D.bib,msg:D.msg,msgWA:D.msgWA,light:D.light,ac:D.ac,ac2:D.ac2,myYape:D.myYape,empYape:D.empYape,ctaBCP:D.ctaBCP,ctaIBK:D.ctaIBK,ctaBBVA:D.ctaBBVA,ctaOtra:D.ctaOtra};
