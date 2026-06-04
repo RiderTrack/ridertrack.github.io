@@ -642,6 +642,7 @@ document.addEventListener("DOMContentLoaded",function(){
     <div class="msec">&#9729;&#65039; Nube Firebase</div>
     <button class="mitem" onclick="syncNube()">&#9729;&#65039; Guardar backup en nube</button>
     <button class="mitem" onclick="loadNube()">&#128197; Ver y cargar backups</button>
+    <button class="mitem" onclick="corregirFechasHistorial();cerrarMenu()" style="color:var(--warn);font-size:0.8rem;">🗓️ Corregir fechas historial</button>
     <button class="mitem" onclick="abrirArchivoExcel();cerrarMenu()">&#128202; Archivo Excel en nube</button>
     <div class="msec">&#128190; Datos locales</div>
     <button class="mitem" onclick="dlBackup();cerrarMenu()">&#128190; Exportar backup JSON</button>
@@ -1598,7 +1599,7 @@ function cerrar(){
   cl.forEach(function(c){var k=c.st;if(!k||k==='pendiente')return;
     if(k==='efectivo'){ef+=c.cobrar||0;tT+=c.cobrar||0;}else if(k==='yape-rudy'){yr+=c.cobrar||0;tT+=c.cobrar||0;}else if(k==='cambio'){tT+=c.cobrar||0;}else if(k==='mixto'){mT+=c.mEf||0;tT+=c.mEf||0;tE+=c.mEmp||0;}else if(k==='yape-efectivo'){var n=Math.max(0,(c.mEf||0)+(c.mYp||0)-(c.mVt||0));ye+=n;tT+=n;}else if(k==='pos'){po+=c.cobrar||0;tE+=c.cobrar||0;}else if(k==='transferencia'){tr+=c.cobrar||0;tE+=c.cobrar||0;}else if(k==='yape-plin'){yp+=c.cobrar||0;tE+=c.cobrar||0;}else if(k==='pago-link'){pl+=c.cobrar||0;tE+=c.cobrar||0;}else if(k==='jose-smith'){js+=c.cobrar||0;tE+=c.cobrar||0;}else if(k==='empresa'){em+=c.cobrar||0;tE+=c.cobrar||0;}
   });
-  var fechaId=new Date().toISOString().slice(0,10);
+  var fechaId=(function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})();
   var kmHoy = parseFloat((_odo && _odo.kmTotal) || localStorage.getItem('odo_km_hoy') || '0');
   D.hist.unshift({id:Date.now(),fechaId:fechaId,fecha:new Date().toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}),fechaL:new Date().toLocaleDateString('es-PE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}),total:cl.length,ent:cl.filter(function(c){return PT.concat(PE).includes(c.st);}).length,fal:cl.filter(function(c){return PF.includes(c.st);}).length,pen:cl.filter(function(c){return c.st==='pendiente';}).length,tT:tT,tE:tE,km:kmHoy,dg:{ef:ef,yr:yr,ye:ye,mT:mT,po:po,tr:tr,yp:yp,pl:pl,js:js,em:em},cl:JSON.parse(JSON.stringify(cl))});
   // Resetear odómetro para el próximo día
@@ -2427,15 +2428,27 @@ function dlCircuit(){
   }
 }
 function dlBackupDirecto(){
-  var d={v:3,fecha:new Date().toISOString(),cl:D.cl,hist:D.hist,bib:D.bib,msg:D.msg,msgWA:D.msgWA,light:D.light,ac:D.ac,ac2:D.ac2,myYape:D.myYape,empYape:D.empYape,ctaBCP:D.ctaBCP,ctaIBK:D.ctaIBK,ctaBBVA:D.ctaBBVA,ctaOtra:D.ctaOtra};
+  var d={
+    v:4, fecha:new Date().toISOString(),
+    cl:D.cl, hist:D.hist, bib:D.bib, reprog:D.reprog,
+    msg:D.msg, msgWA:D.msgWA,
+    light:D.light, ac:D.ac, ac2:D.ac2,
+    myYape:D.myYape, empYape:D.empYape,
+    qr_yape_nom:D.qr_yape_nom, qr_plin_nom:D.qr_plin_nom,
+    ctaBCP:D.ctaBCP, ctaIBK:D.ctaIBK, ctaBBVA:D.ctaBBVA, ctaOtra:D.ctaOtra,
+    foto:D.foto||'',
+    ts_config:localStorage.getItem('ts_config')||'',
+    odoo_cfg:localStorage.getItem('odoo_cfg')||''
+  };
   var blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
   var nom='backup_ridertrack_'+new Date().toLocaleDateString('es-PE').replace(/\//g,'-')+'.json';
   var file=new File([blob],nom,{type:blob.type});
   if(navigator.canShare&&navigator.canShare({files:[file]})){
-    navigator.share({files:[file],title:'RiderTrack — '+nom,text:'Backup RiderTrack'})
+    navigator.share({files:[file],title:'RiderTrack Backup',text:'Backup completo RiderTrack'})
       .catch(function(){descargaDirecta(blob,nom);});
-  }else{descargaDirecta(blob,nom);}
+  } else { descargaDirecta(blob,nom); }
 }
+
 function dlXlsDirecto(){xlsDataDirecto(D.cl,new Date().toLocaleDateString('es-PE'));}
 function xlsDataDirecto(cl,fn){
   if(!cl||!cl.length){alert('No hay clientes');return;}
@@ -2447,9 +2460,32 @@ function xlsDataDirecto(cl,fn){
 }
 
 function dlBackup(){
-  var d={v:3,fecha:new Date().toISOString(),cl:D.cl,hist:D.hist,bib:D.bib,msg:D.msg,msgWA:D.msgWA,light:D.light,ac:D.ac,ac2:D.ac2,myYape:D.myYape,empYape:D.empYape,ctaBCP:D.ctaBCP,ctaIBK:D.ctaIBK,ctaBBVA:D.ctaBBVA,ctaOtra:D.ctaOtra};
-  var blob=new Blob([JSON.stringify(d,null,2)],{type:'text/plain'});
-  var nom='backup_ridertrack_'+new Date().toLocaleDateString('es-PE').replace(/\//g,'-')+'.txt';compartirArchivo(blob,nom,'Backup RiderTrack');
+  var d={
+    v:4,
+    fecha:new Date().toISOString(),
+    // Clientes e historial
+    cl:D.cl, hist:D.hist, bib:D.bib, reprog:D.reprog,
+    // Mensajes
+    msg:D.msg, msgWA:D.msgWA,
+    // Configuración visual
+    light:D.light, ac:D.ac, ac2:D.ac2,
+    // Pagos
+    myYape:D.myYape, empYape:D.empYape,
+    qr_yape_nom:D.qr_yape_nom, qr_plin_nom:D.qr_plin_nom,
+    ctaBCP:D.ctaBCP, ctaIBK:D.ctaIBK, ctaBBVA:D.ctaBBVA, ctaOtra:D.ctaOtra,
+    // Foto de perfil
+    foto:D.foto||'',
+    // Tema y Odoo
+    ts_config:localStorage.getItem('ts_config')||'',
+    odoo_cfg:localStorage.getItem('odoo_cfg')||''
+  };
+  var blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+  var nom='backup_ridertrack_'+new Date().toLocaleDateString('es-PE').replace(/\//g,'-')+'.json';
+  var file=new File([blob],nom,{type:blob.type});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    navigator.share({files:[file],title:'RiderTrack Backup',text:'Backup completo RiderTrack'})
+      .catch(function(){ descargaDirecta(blob,nom); });
+  } else { descargaDirecta(blob,nom); }
 }
 function impBackup(inp){
   var f=inp.files[0];if(!f)return;
@@ -3842,6 +3878,32 @@ function spLogout(){
   // Restaurar token guardado
   _spToken = localStorage.getItem('sp_token');
 })();
+
+
+// ── CORRECTOR DE FECHAS DEL HISTORIAL ──────────────────────────
+function corregirFechasHistorial(){
+  if(!D.hist||!D.hist.length){mostrarToast('No hay historial');return;}
+  var corregidos=0;
+  D.hist.forEach(function(h){
+    if(!h.fechaId) return;
+    // Detectar si la fecha tiene formato YYYY-MM-DD
+    var m=h.fechaId.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!m) return;
+    // Restar un día
+    var d=new Date(h.fechaId+'T12:00:00'); // Mediodía para evitar problemas de TZ
+    d.setDate(d.getDate()-1);
+    var nueva=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    h.fechaId=nueva;
+    // Actualizar fecha legible también
+    var dObj=new Date(nueva+'T12:00:00');
+    h.fecha=dObj.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'});
+    h.fechaL=dObj.toLocaleDateString('es-PE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+    corregidos++;
+  });
+  sv();
+  render();
+  mostrarToast('✅ '+corregidos+' rutas corregidas');
+}
 
 </script>
 </div><!-- /app-container -->
