@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Install imagemagick
+        run: sudo apt-get install -y imagemagick
+
       - name: Prepare www folder
         run: |
           mkdir -p www
@@ -60,6 +63,29 @@ jobs:
         run: |
           GRADLE="android/app/build.gradle"
           sed -i '/dependencies {/a\    implementation "com.google.android.gms:play-services-auth:20.7.0"' "$GRADLE"
+
+      - name: Replace all app icons
+        run: |
+          if [ -f "icon.png" ]; then
+            for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+              case $density in
+                mdpi)    size=48  ;;
+                hdpi)    size=72  ;;
+                xhdpi)   size=96  ;;
+                xxhdpi)  size=144 ;;
+                xxxhdpi) size=192 ;;
+              esac
+              dir="android/app/src/main/res/mipmap-${density}"
+              mkdir -p "$dir"
+              convert icon.png -resize ${size}x${size} "${dir}/ic_launcher.png"
+              convert icon.png -resize ${size}x${size} "${dir}/ic_launcher_round.png"
+              convert icon.png -resize ${size}x${size} "${dir}/ic_launcher_foreground.png"
+            done
+            mkdir -p android/app/src/main/res/mipmap-anydpi-v26
+            printf '<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n    <background android:drawable="@android:color/white"/>\n    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>\n</adaptive-icon>' > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+            cp android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+            echo "Icons replaced"
+          fi
 
       - name: Update AndroidManifest permissions
         run: |
