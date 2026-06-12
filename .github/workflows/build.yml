@@ -61,15 +61,9 @@ jobs:
 
       - name: Configure GoogleAuth plugin
         run: |
-          # Agregar strings.xml con server_client_id para GoogleAuth
           mkdir -p android/app/src/main/res/values
-          cat > android/app/src/main/res/values/strings.xml << STREOF
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">RiderTrack</string>
-    <string name="server_client_id">851606828420-rm5mumtplpctk6p4cjh44mnttlnlmbfs.apps.googleusercontent.com</string>
-</resources>
-STREOF
+          echo '<?xml version="1.0" encoding="utf-8"?><resources><string name="app_name">RiderTrack</string><string name="server_client_id">851606828420-rm5mumtplpctk6p4cjh44mnttlnlmbfs.apps.googleusercontent.com</string></resources>' > android/app/src/main/res/values/strings.xml
+          echo "✅ strings.xml creado"
 
       - name: Add Google Auth dependency to app build.gradle
         run: |
