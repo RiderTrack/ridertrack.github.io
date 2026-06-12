@@ -1192,7 +1192,35 @@ function initFirebase(){
         actualizarPerfilUI(perfil);
         ocultarLoginScreen();
         mostrarApp();
-        if(typeof loadNube==='function') setTimeout(loadNube, 800);
+        // Cargar datos en tiempo real desde Firestore
+        if(db && fbUserId){
+          db.collection('usuarios').doc(fbUserId).get()
+            .then(function(doc){
+              if(doc.exists){
+                var d = doc.data();
+                var tieneAutoSync = d.autoSync === true;
+                if(tieneAutoSync){
+                  // Datos de sync automático — cargar directo
+                  if(d.cl) D.cl = d.cl;
+                  if(d.hist) D.hist = d.hist;
+                  if(d.bib) D.bib = d.bib;
+                  if(d.msg) D.msg = d.msg;
+                  if(d.msgWA) D.msgWA = d.msgWA;
+                  if(d.myYape) D.myYape = d.myYape;
+                  if(d.empYape) D.empYape = d.empYape;
+                  if(d.ctaBCP) D.ctaBCP = d.ctaBCP;
+                  if(d.ctaIBK) D.ctaIBK = d.ctaIBK;
+                  if(d.ctaBBVA) D.ctaBBVA = d.ctaBBVA;
+                  if(d.ctaOtra) D.ctaOtra = d.ctaOtra;
+                  sv();
+                  if(typeof render === 'function') setTimeout(render, 300);
+                  fbSetStatus('☁️','Datos sincronizados ✅');
+                  mostrarToast('☁️ Datos cargados desde la nube');
+                }
+              }
+            })
+            .catch(function(e){ console.log('Error cargando datos:', e); });
+        }
       } else {
         mostrarLoginScreen();
       }
@@ -1277,7 +1305,27 @@ var FIL='t',SRC='',DIST_FIL='';
 // ║  SECCIÓN 2: UTILIDADES CORE                                  ║
 // ║  Funciones: sv() guarda D en urRoute, el() = getElementById  ║
 // ║             setEl(), fmt() formatea moneda, getFechaHoy()     ║
-function sv(){try{localStorage.setItem('urRoute',JSON.stringify(D));}catch(e){}}
+function sv(){
+  try{localStorage.setItem('urRoute',JSON.stringify(D));}catch(e){}
+  // Auto-sync a Firebase con debounce de 3 segundos
+  if(typeof _autoSyncTimer !== 'undefined') clearTimeout(_autoSyncTimer);
+  _autoSyncTimer = setTimeout(function(){
+    if(db && fbUserId){
+      var datos = {
+        cl:D.cl, hist:D.hist, bib:D.bib, msg:D.msg, msgWA:D.msgWA,
+        myYape:D.myYape, empYape:D.empYape,
+        ctaBCP:D.ctaBCP, ctaIBK:D.ctaIBK, ctaBBVA:D.ctaBBVA, ctaOtra:D.ctaOtra,
+        light:D.light, ac:D.ac, ac2:D.ac2,
+        savedAt:new Date().toISOString(),
+        autoSync:true
+      };
+      db.collection('usuarios').doc(fbUserId).set(datos, {merge:true})
+        .then(function(){ fbSetStatus('☁️✅','Sincronizado'); setTimeout(function(){ fbSetStatus('☁️','Conectado'); }, 2000); })
+        .catch(function(){ fbSetStatus('☁️','Sin conexión'); });
+    }
+  }, 3000);
+}
+var _autoSyncTimer;
 function el(id){return document.getElementById(id);}
 function setEl(id,v){var e=el(id);if(e)e.textContent=v;}
 function fmt(n){return 'S/ '+parseFloat(n||0).toFixed(2);}
