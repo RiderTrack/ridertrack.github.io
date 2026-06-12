@@ -561,7 +561,6 @@ body.dark-mode .msec::after{background:rgba(255,255,255,0.06)}
 .btn-theme:active{transform:scale(0.9)}
 body.dark-mode .btn-theme{background:#2B2D3A}
 
-
 </style>
 </head>
 <body class="dark-mode">
@@ -607,10 +606,9 @@ document.addEventListener("DOMContentLoaded",function(){
 });
 </script>
 
-
 <div class="app-container" id="main-app">
 <nav class="nav">
-  <button class="nb on" onclick="goTo('ruta',this)"><i>&#128203;</i>RUTA</button>
+  <button class="nb on" id="nb-ruta" onclick="goTo('ruta',this)"><i>&#128203;</i>RUTA</button>
   <button class="nb" onclick="goTo('resumen',this)"><i>&#128176;</i>RESUMEN</button>
   <button class="nb" onclick="goTo('hist',this)"><i>&#128218;</i>HISTORIAL</button>
   <button class="nb" onclick="goTo('reprog',this)" id="nb-reprog"><i>&#128260;</i>REPROG.<span id="nb-reprog-badge" style="display:none;background:#EF4444;color:#fff;border-radius:99px;font-size:0.5rem;padding:1px 5px;margin-left:2px;font-weight:800;vertical-align:middle"></span></button>
@@ -637,9 +635,6 @@ document.addEventListener("DOMContentLoaded",function(){
     </div>
   </div>
   <div style="flex:1;padding:12px">
-    <div class="msec" style="color:#7B5EA7">🔗 Odoo — Empresa</div>
-    <button class="mitem" onclick="abrirOdoo();cerrarMenu()" style="background:linear-gradient(135deg,rgba(123,94,167,0.18),rgba(99,60,180,0.1));border-color:rgba(123,94,167,0.45);color:#c5b3e6;font-weight:800">🔗 Sincronizar con Odoo</button>
-    <div class="msec">&#9729;&#65039; Nube Firebase</div>
     <button class="mitem" onclick="syncNube()">&#9729;&#65039; Guardar backup en nube</button>
     <button class="mitem" onclick="loadNube()">&#128197; Ver y cargar backups</button>
     <button class="mitem" onclick="corregirFechasHistorial();cerrarMenu()" style="color:var(--warn);font-size:0.8rem;">🗓️ Corregir fechas historial</button>
@@ -656,8 +651,8 @@ document.addEventListener("DOMContentLoaded",function(){
     <button class="mitem" onclick="abrirMoto()">&#127949;&#65039; Control de mantenimiento</button>
     <div class="msec">&#128172; Mensajeria</div>
     <button class="mitem" onclick="abrirClientes()" style="background:linear-gradient(135deg,rgba(37,99,235,0.15),rgba(79,142,247,0.1));border-color:rgba(79,142,247,0.3);color:var(--ac)">&#128172; ClienteTrack — Mensajes y QR</button>
-    <button class="mitem" onclick="window.location.href='navegar.html';cerrarMenu()" style="background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(5,150,105,0.1));border-color:rgba(16,185,129,0.3);color:#10b981">🧭 Navegación Inteligente</button>
     <div class="msec">&#9881;&#65039; Apariencia</div>
+    <button class="mitem" onclick="abrirApiKey();cerrarMenu()" style="background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(79,70,229,0.1));border-color:rgba(99,102,241,0.3);color:#818cf8;font-weight:700">🤖 Configurar API Key IA</button>
     <button class="mitem" onclick="abrirThemeStudio();cerrarMenu()" style="background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(239,68,68,0.08));border-color:rgba(245,158,11,0.4);color:#F59E0B;font-weight:800">🎨 Theme Studio — Personalizar app</button>
     <div class="msec" style="color:rgba(255,51,85,0.7)">&#9888;&#65039; Peligroso</div>
     <button class="mitem" style="color:var(--danger);border-color:rgba(255,51,85,0.2)" onclick="limpiar();cerrarMenu()">&#128465;&#65039; Limpiar ruta actual</button>
@@ -1060,12 +1055,10 @@ document.addEventListener("DOMContentLoaded",function(){
 <script>
 // FIREBASE
 var db=null,fbAuth=null,fbUserId=null;
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 1: FIREBASE                                         ║
 // ║  Funciones: fbSetStatus, guardarEnFB, initFirebase            ║
 // ║             syncNube, loadNube, cargarBackup, elimBackup      ║
 // ║  Storage: db (Firebase Firestore), fbAuth, fbUserId           ║
-// ╚══════════════════════════════════════════════════════════════╝
 function fbSetStatus(ico,txt){
   // Actualizar los dos posibles elementos del UI
   var i=el('fb-status'); if(i) i.textContent=ico||'☁️';
@@ -1175,6 +1168,7 @@ function cargarBackup(id){
     if(d.msgWA){D.msgWA=d.msgWA;if(el('msgWA'))el('msgWA').value=d.msgWA;}
     if(d.light!==undefined)D.light=d.light;if(d.ac){D.ac=d.ac;D.ac2=d.ac2||d.ac;document.documentElement.style.setProperty('--ac',D.ac);document.documentElement.style.setProperty('--ac2',D.ac2);}
     ['myYape','empYape','ctaBCP','ctaIBK','ctaBBVA','ctaOtra'].forEach(function(k){if(d[k]!==undefined){D[k]=d[k];if(el(k))el(k).value=d[k];}});
+    D.cl=(D.cl||[]).map(function(c){c.nombre=c.nombre||'Sin nombre';c.st=c.st||'pendiente';return c;});
     sv();render();cerrarMenu();alert('✅ Backup cargado: '+id);
   }).catch(function(e){alert('Error: '+e.message);});
 }
@@ -1194,11 +1188,9 @@ var PF=['fallida','reprogramar','rechazado','devuelto','ausente','no-contesta','
 var PL={efectivo:'💵 Efectivo','yape-rudy':'📲 Yape Rudy','yape-efectivo':'💜 Yape+Efectivo','yape-plin':'📲 Yape/Plin',transferencia:'🏦 Transferencia',pos:'💳 POS','pago-link':'🔗 Pago Link','jose-smith':'🤝 Jose Smith',cambio:'💱 Cambio',mixto:'🔀 Mixto',cancelado:'✖ Cancelado',empresa:'🏪 Empresa',rechazado:'🚫 Rechazado',ausente:'🚶 Ausente',fallida:'❌ Fallida','no-contesta':'📵 N.Contesta',reprogramar:'🔄 Reprogramar',devuelto:'↩️ Devuelto'};
 var FIL='t',SRC='',DIST_FIL='';
 
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 2: UTILIDADES CORE                                  ║
 // ║  Funciones: sv() guarda D en urRoute, el() = getElementById  ║
 // ║             setEl(), fmt() formatea moneda, getFechaHoy()     ║
-// ╚══════════════════════════════════════════════════════════════╝
 function sv(){try{localStorage.setItem('urRoute',JSON.stringify(D));}catch(e){}}
 function el(id){return document.getElementById(id);}
 function setEl(id,v){var e=el(id);if(e)e.textContent=v;}
@@ -1222,12 +1214,10 @@ setTimeout(function(){
 },200);
 
 // MENU
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 3: NAVEGACIÓN UI                                    ║
 // ║  Funciones: abrirMenu, cerrarMenu, togTheme, setAC           ║
 // ║             cambiarFoto, goTo (cambio de página)              ║
 // ║  Temas: D.light toggle, colores --ac/--ac2                   ║
-// ╚══════════════════════════════════════════════════════════════╝
 function abrirMenu(){el('menu-lateral').classList.add('open');el('menu-overlay').style.display='block';document.body.style.overflow='hidden';}
 function cerrarMenu(){el('menu-lateral').classList.remove('open');el('menu-overlay').style.display='none';document.body.style.overflow='auto';}
 function togTheme(){ abrirThemeStudio(); }
@@ -1236,11 +1226,9 @@ function cambiarFoto(inp){var f=inp.files[0];if(!f)return;var r=new FileReader()
 function goTo(p,b){document.querySelectorAll('.page').forEach(function(x){x.classList.remove('on');});document.querySelectorAll('.nb').forEach(function(x){x.classList.remove('on');});el('page-'+p).classList.add('on');b.classList.add('on');render();}
 
 // EXCEL IMPORT
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 4: IMPORTAR EXCEL                                   ║
 // ║  Funciones: impXls() lee .xlsx con SheetJS                   ║
 // ║  Campos esperados: nombre, cel, prod, dir, dist, cobrar      ║
-// ╚══════════════════════════════════════════════════════════════╝
 function clasificarDir(dir){
   if(!dir) return 'sin';
   var d = dir.toLowerCase().trim();
@@ -1348,14 +1336,88 @@ function impXls(inp){
 }
 function mostrarResumenImport(total, contMz, contRef, contOk){
   var necesitaAtencion = contMz + contRef;
-  var msg = '📥 ' + total + ' pedidos importados\n\n';
-  msg += '🟢 ' + contOk + ' normales\n';
-  if(contMz>0) msg += '🔴 ' + contMz + ' con manzana\n';
-  if(contRef>0) msg += '🟡 ' + contRef + ' sin número\n';
-  if(necesitaAtencion>0) msg += '\n⚠️ Usa el filtro 🔴 o 🟡 para verlos';
-  alert(msg);
+  if(necesitaAtencion === 0){
+    mostrarToast('📥 '+total+' pedidos importados — todos con dirección completa ✅');
+    return;
+  }
+  // Hay direcciones problemáticas — mostrar modal con IA
+  setTimeout(function(){ abrirModalDirIA(total, contMz, contRef, contOk); }, 300);
 }
 
+function abrirModalDirIA(total, contMz, contRef, contOk){
+  var existing = document.getElementById('modal-dir-ia');
+  if(existing) existing.remove();
+
+  // Recopilar clientes problemáticos
+  var problematicos = D.cl.filter(function(c){
+    var d = (c.dir||'').toLowerCase();
+    var tipDir = c.tipDir || '';
+    return tipDir === 'mz' || tipDir === 'ref' || /\bmz\b|manzana/.test(d) || /s\.?n\.?\b|sin\s*n[uú]m/.test(d);
+  });
+
+  var overlay = document.createElement('div');
+  overlay.id = 'modal-dir-ia';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.8);display:flex;align-items:flex-end;justify-content:center;';
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+
+  var lista = problematicos.slice(0,5).map(function(c){
+    return '<div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:8px 10px;margin-bottom:6px;">'+
+      '<div style="font-size:0.8rem;font-weight:700;color:#F1F5F9;">'+c.nombre+'</div>'+
+      '<div style="font-size:0.68rem;color:#94A3B8;">📍 '+(c.dir||'Sin dirección')+'</div>'+
+    '</div>';
+  }).join('');
+  var masStr = problematicos.length > 5 ? '<div style="font-size:0.7rem;color:#94A3B8;text-align:center;">...y '+(problematicos.length-5)+' más</div>' : '';
+
+  overlay.innerHTML =
+    '<div style="background:#161820;border-radius:24px 24px 0 0;width:100%;max-width:430px;border:1px solid rgba(255,255,255,0.08);border-bottom:none;max-height:80vh;overflow-y:auto;">'+
+      '<div style="background:linear-gradient(135deg,rgba(239,68,68,0.2),rgba(239,68,68,0.05));padding:18px 18px 14px;position:relative;">'+
+        '<button onclick="document.getElementById(\'modal-dir-ia\').remove()" style="position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.1);border:none;color:#94A3B8;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:0.85rem;">✕</button>'+
+        '<div style="font-size:0.65rem;font-weight:800;color:#f87171;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px;">⚠️ DIRECCIONES INCOMPLETAS</div>'+
+        '<div style="font-size:1rem;font-weight:900;color:#F1F5F9;">'+total+' pedidos importados</div>'+
+        '<div style="font-size:0.72rem;color:#94A3B8;margin-top:4px;">'+contOk+' normales · '+(contMz+contRef)+' con dirección incompleta</div>'+
+      '</div>'+
+      '<div style="padding:14px 18px;">'+
+        '<div style="font-size:0.72rem;color:#94A3B8;margin-bottom:10px;">Estos clientes necesitan confirmar su dirección:</div>'+
+        lista + masStr +
+        '<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">'+
+          '<button onclick="enviarMsgDirIA()" style="padding:12px;border-radius:12px;background:linear-gradient(135deg,#25D366,#128C7E);border:none;color:#fff;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:inherit;">📲 Enviar mensajes por WhatsApp</button>'+
+          '<button onclick="document.getElementById(\'modal-dir-ia\').remove()" style="padding:10px;border-radius:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94A3B8;font-weight:700;font-size:0.78rem;cursor:pointer;font-family:inherit;">Omitir por ahora</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+
+  document.body.appendChild(overlay);
+}
+
+function enviarMsgDirIA(){
+  var overlay = document.getElementById('modal-dir-ia');
+  if(overlay) overlay.remove();
+
+  var problematicos = D.cl.filter(function(c){
+    var d = (c.dir||'').toLowerCase();
+    var tipDir = c.tipDir || '';
+    return tipDir === 'mz' || tipDir === 'ref' || /\bmz\b|manzana/.test(d) || /s\.?n\.?\b|sin\s*n[uú]m/.test(d);
+  });
+
+  if(!problematicos.length){ mostrarToast('No hay clientes con dirección incompleta'); return; }
+
+  var idx = 0;
+  function siguiente(){
+    if(idx >= problematicos.length){
+      mostrarToast('✅ Mensajes enviados a '+problematicos.length+' clientes');
+      return;
+    }
+    var c = problematicos[idx];
+    idx++;
+    var tel = cTel(c.cel);
+    if(!tel){ siguiente(); return; }
+    var msg = 'Hola '+(c.nombre||'').split(' ')[0]+', soy Rudy del delivery 🛵\nTengo tu pedido pero necesito que me confirmes tu dirección exacta (número de casa/dpto) para poder llegar. ¡Gracias!';
+    var link = 'https://wa.me/51'+tel+'?text='+encodeURIComponent(msg);
+    window.open(link, '_blank');
+    setTimeout(siguiente, 1500);
+  }
+  siguiente();
+}
 
 function setFExterno(f){
   // Activar filtro y asegurarse que la página ruta está activa
@@ -1373,14 +1435,12 @@ function setFExterno(f){
   }
 }
 
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 5: CLIENTES CRUD                                    ║
 // ║  Funciones: mM/hM/addM (agregar manual), setF (filtros)      ║
 // ║             doSearch, stc (color estado), getFil (filtrado)  ║
 // ║  Storage: D.cl[] — array principal de clientes               ║
 // ║  Estructura cliente: {id,num,nombre,cel,prod,dir,dist,cobrar,║
 // ║    precio,st,mEf,mYp,mEmp,mVt,mEM,hora,nota,obs}            ║
-// ╚══════════════════════════════════════════════════════════════╝
 function mM(){el('fman').style.display='block';}
 function hM(){el('fman').style.display='none';}
 function addM(){
@@ -1422,19 +1482,25 @@ function renderDistSelector(){
 function doSearch(){SRC=el('srch').value.toLowerCase();rLista();}
 function stc(s){if(!s||s==='pendiente')return 'p';if(PE.includes(s))return 'e';if(['reprogramar','no-contesta','ausente'].includes(s))return 'w';if(['fallida','rechazado','devuelto','cancelado'].includes(s))return 'f';return 'o';}
 function getFil(){return D.cl.filter(function(c){var sc=stc(c.st);var mf=FIL==='t'||(FIL==='p'&&c.st==='pendiente')||(FIL==='o'&&sc==='o')||(FIL==='e'&&sc==='e')||(FIL==='w'&&sc==='w')||(FIL==='f'&&sc==='f')||(FIL==='dmz'&&c.tipDir==='mz')||(FIL==='dref'&&c.tipDir==='ref');var ms=!SRC||c.nombre.toLowerCase().includes(SRC)||(c.prod||'').toLowerCase().includes(SRC)||(c.dist||'').toLowerCase().includes(SRC);var md=!DIST_FIL||(c.dist||'').toLowerCase()===DIST_FIL;return mf&&ms&&md;});}
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 6: ESTADOS Y PAGOS                                  ║
 // ║  Funciones: setPago, setMx, setYE, setME, togDet, delC       ║
 // ║             eCob, eNota, eCampo, togEd, togObs, moverA       ║
 // ║  Estados PT(efectivo/yape), PE(empresa/pos), PF(fallidos)    ║
 // ║  PL = mapa de etiquetas de estado                            ║
-// ╚══════════════════════════════════════════════════════════════╝
-function setPago(id,p){var c=D.cl.find(function(x){return x.id===id;});if(!c)return;c.st=p;if(!['mixto','yape-efectivo'].includes(p)){c.mEf=0;c.mYp=0;c.mEmp=0;c.mVt=0;}c.hora=p!=='pendiente'?new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}):'';
+function setPago(id,p){
+  var c=D.cl.find(function(x){return x.id===id;});
+  if(!c)return;
+  c.st=p;
+  if(!['mixto','yape-efectivo'].includes(p)){c.mEf=0;c.mYp=0;c.mEmp=0;c.mVt=0;}
+  c.hora=p!=='pendiente'?new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}):'';
   // AUTO-GUARDAR EN REPROGRAMADOS si es estado fallido
   if(['fallida','reprogramar','rechazado','devuelto','ausente','no-contesta','cancelado'].includes(p)){
     rpGuardar(c);
   }
-  sv();rLista();rRes();}
+  sv();
+  // Diferir render para evitar congelamiento al destruir DOM mientras se procesa el click
+  setTimeout(function(){ rLista(); rRes(); rpUpdBadge(); }, 50);
+}
 function setMx(id){var c=D.cl.find(function(x){return x.id===id;});if(!c)return;var ef=el('mef-'+id),emp=el('memp-'+id);if(ef)c.mEf=parseFloat(ef.value)||0;if(emp)c.mEmp=parseFloat(emp.value)||0;sv();rRes();}
 function setYE(id){var c=D.cl.find(function(x){return x.id===id;});if(!c)return;var ef=el('yef-'+id),yp=el('yyp-'+id),vt=el('yvt-'+id);if(ef)c.mEf=parseFloat(ef.value)||0;if(yp)c.mYp=parseFloat(yp.value)||0;if(vt)c.mVt=parseFloat(vt.value)||0;var ne=el('yn-'+id);if(ne)ne.textContent=fmt(Math.max(0,c.mEf+c.mYp-c.mVt));sv();rRes();}
 function setME(id,m){var c=D.cl.find(function(x){return x.id===id;});if(!c)return;c.mEM=m;sv();}
@@ -1447,36 +1513,30 @@ function togEd(id){var f=el('fed-'+id),b=el('bed-'+id);if(!f)return;var o=f.styl
 function togObs(id){var f=el('obs-edit-'+id);if(!f)return;var o=f.style.display!=='none';f.style.display=o?'none':'block';if(!o){var inp=el('obs-inp-'+id);if(inp)inp.focus();}}
 function guardarObs(id){var c=D.cl.find(function(x){return x.id===id;});if(!c)return;var inp=el('obs-inp-'+id);if(!inp)return;c.obs=inp.value.trim();sv();rLista();}
 function moverA(id,np){np=parseInt(np);if(isNaN(np))return;np=Math.max(1,Math.min(D.cl.length,np));var oi=D.cl.findIndex(function(c){return c.id===id;});if(oi===-1)return;var ni=np-1;if(oi===ni)return;var item=D.cl.splice(oi,1)[0];D.cl.splice(ni,0,item);D.cl.forEach(function(c,i){c.num=i+1;});sv();rLista();rNav();}
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 7: CUENTAS Y COBROS                                 ║
 // ║  Funciones: getYape, getEmpYape, getBCP, getIBK, getBBVA     ║
 // ║             getOtra — retornan números de cuenta para WA     ║
-// ╚══════════════════════════════════════════════════════════════╝
 function getYape(){return(el('myYape')&&el('myYape').value.trim())?el('myYape').value.trim():D.myYape||'';}
 function getEmpYape(){return(el('empYape')&&el('empYape').value.trim())?el('empYape').value.trim():D.empYape||'';}
 function getBCP(){return(el('ctaBCP')&&el('ctaBCP').value.trim())?el('ctaBCP').value.trim():D.ctaBCP||'';}
 function getIBK(){return(el('ctaIBK')&&el('ctaIBK').value.trim())?el('ctaIBK').value.trim():D.ctaIBK||'';}
 function getBBVA(){return(el('ctaBBVA')&&el('ctaBBVA').value.trim())?el('ctaBBVA').value.trim():D.ctaBBVA||'';}
 function getOtra(){return(el('ctaOtra')&&el('ctaOtra').value.trim())?el('ctaOtra').value.trim():D.ctaOtra||'';}
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 8: MENSAJES Y WHATSAPP                              ║
 // ║  Funciones: cTel (limpia teléfono), aplicarTags, getMsg      ║
 // ║             getMsgWA, getWALink                               ║
 // ║  Tags: {nombre}{producto}{precio}{cobrar}{yape}{plin}etc.    ║
-// ╚══════════════════════════════════════════════════════════════╝
 function cTel(t){var s=String(t||'').replace(/\s/g,'').replace(/[^0-9]/g,'');if(s.startsWith('51')&&s.length>9)s=s.slice(2);return s;}
-function aplicarTags(tmpl,c){var hi=el('hI')?el('hI').value||'09:00':'09:00';var hf=el('hF')?el('hF').value||'13:00':'13:00';return tmpl.replace(/\{nombre\}/g,c.nombre.split(' ')[0]).replace(/\{producto\}/g,c.prod||'su pedido').replace(/\{precio\}/g,c.precio||'0').replace(/\{cobrar\}/g,c.cobrar||c.precio||'0').replace(/\{hora_inicio\}/g,hi).replace(/\{hora_fin\}/g,hf).replace(/\{direccion\}/g,c.dir||'').replace(/\{distrito\}/g,c.dist||'').replace(/\{celular\}/g,c.cel||'').replace(/\{yape\}/g,getYape()).replace(/\{yape_empresa\}/g,getEmpYape()).replace(/\{bcp\}/g,getBCP()).replace(/\{interbank\}/g,getIBK()).replace(/\{bbva\}/g,getBBVA()).replace(/\{otra_cuenta\}/g,getOtra());}
+function aplicarTags(tmpl,c){var hi=el('hI')?el('hI').value||'09:00':'09:00';var hf=el('hF')?el('hF').value||'13:00':'13:00';return tmpl.replace(/\{nombre\}/g,(c.nombre||'').split(' ')[0]).replace(/\{producto\}/g,c.prod||'su pedido').replace(/\{precio\}/g,c.precio||'0').replace(/\{cobrar\}/g,c.cobrar||c.precio||'0').replace(/\{hora_inicio\}/g,hi).replace(/\{hora_fin\}/g,hf).replace(/\{direccion\}/g,c.dir||'').replace(/\{distrito\}/g,c.dist||'').replace(/\{celular\}/g,c.cel||'').replace(/\{yape\}/g,getYape()).replace(/\{yape_empresa\}/g,getEmpYape()).replace(/\{bcp\}/g,getBCP()).replace(/\{interbank\}/g,getIBK()).replace(/\{bbva\}/g,getBBVA()).replace(/\{otra_cuenta\}/g,getOtra());}
 function getMsg(c){return aplicarTags(D.msg||'Hola {nombre}, soy Rudy.',c);}
 function getMsgWA(c){return aplicarTags(D.msgWA||'Hola {nombre}, soy Rudy de delivery.',c);}
 function getWALink(c){var tel=cTel(c.cel);if(!tel)return '#';return 'https://wa.me/51'+tel+'?text='+encodeURIComponent(getMsgWA(c));}
 
 // RENDER LISTA
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 9: RENDER LISTA DE CLIENTES                         ║
 // ║  Funciones: rLista (renderiza tarjetas), updBadge (badges)   ║
 // ║             rRes (resumen/totales), updV (vueltos)            ║
 // ║  Elementos: #lcli (lista), #badge/#badge2, #r-ent/#r-fal     ║
-// ╚══════════════════════════════════════════════════════════════╝
 function rLista(){
   var lst=el('lcli'),zi=el('zimp'),lh=el('lhdr'),bc=el('bcer');
   renderDistSelector();
@@ -1588,11 +1648,9 @@ function rRes(){
 }
 function updV(){var ve=parseFloat(el('vE').value)||0,vy=parseFloat(el('vY').value)||0;setEl('r-ve',fmt(ve));setEl('r-vy',fmt(vy));}
 
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 10: CERRAR RUTA                                     ║
 // ║  Funciones: cerrar() guarda en D.hist + limpia D.cl          ║
 // ║             limpiar() limpia sin guardar                      ║
-// ╚══════════════════════════════════════════════════════════════╝
 function cerrar(){
   if(!confirm('¿Cerrar la ruta y guardar?'))return;
   var cl=D.cl,tT=0,tE=0,ef=0,yr=0,ye=0,mT=0,po=0,tr=0,yp=0,pl=0,js=0,em=0;
@@ -1613,12 +1671,10 @@ function limpiar(){if(confirm('¿Limpiar sin guardar?')){D.cl=[];sv();render();}
 var calAno=new Date().getFullYear(),calMes=new Date().getMonth();
 var calVisible=false;
 
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 11: HISTORIAL Y CALENDARIO                          ║
 // ║  Funciones: togCalendario, calCambiar, renderCal             ║
 // ║             verDiaHist, rHist, togH, delH, limpH             ║
 // ║  Storage: D.hist[] — historial de rutas cerradas             ║
-// ╚══════════════════════════════════════════════════════════════╝
 function togCalendario(){
   calVisible=!calVisible;var w=el('cal-wrap');var arr=el('cal-arrow');
   if(w)w.style.display=calVisible?'block':'none';
@@ -1718,9 +1774,10 @@ function verDiaHist(fechaId){
       h+='<div style="display:flex;justify-content:space-between;border-top:1px solid rgba(96,165,250,0.15);padding-top:5px;margin-top:5px"><span style="font-size:0.72rem;font-weight:700;color:var(--blue)">TOTAL EMPRESA</span><span style="font-family:Bebas Neue,sans-serif;font-size:1rem;color:var(--blue)">'+fmt(ruta.tE)+'</span></div>';
       h+='</div>';
     }
-    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
-    h+='<button class="btn bgr" onclick="xlsHist('+ruta.id+')" style="padding:8px;font-size:0.72rem">📥 Descargar Excel</button>';
-    h+='<button class="btn" onclick="subirExcelNube('+ruta.id+')" style="padding:8px;font-size:0.72rem;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;border:none">☁️ Subir Excel</button>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">';
+    h+='<button class="btn bgr" onclick="xlsHist('+ruta.id+')" style="padding:8px;font-size:0.72rem">📥 Excel</button>';
+    h+='<button class="btn" onclick="subirExcelNube('+ruta.id+')" style="padding:8px;font-size:0.72rem;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;border:none">☁️ Nube</button>';
+    h+='<button onclick="editarFechaHist('+ruta.id+')" style="padding:8px;font-size:0.72rem;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);border-radius:8px;color:#a78bfa;font-weight:700;cursor:pointer;font-family:inherit">📅 Fecha</button>';
     h+='</div>';
     h+='</div>'; // fin panel
     h+='</div>'; // fin hc
@@ -1816,11 +1873,9 @@ function delH(id){if(confirm('¿Eliminar ruta?')){D.hist=D.hist.filter(function(
 function limpH(){if(confirm('¿Borrar todo el historial?')){D.hist=[];sv();rHist();}}
 
 // MENSAJES
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 12: CONFIGURACIÓN Y MENSAJES                        ║
 // ║  Funciones: insT/insTagWA (insertar tags), saveMsg/saveMsgWA ║
 // ║             saveDatos, togSec, copNums, cpFb, sCop           ║
-// ╚══════════════════════════════════════════════════════════════╝
 function insT(t){var ta=el('msgA');if(!ta)return;var s=ta.selectionStart,e=ta.selectionEnd;ta.value=ta.value.substring(0,s)+t+ta.value.substring(e);ta.focus();ta.selectionStart=ta.selectionEnd=s+t.length;}
 function insTagWA(t){var ta=el('msgWA');if(!ta)return;var s=ta.selectionStart,e=ta.selectionEnd;ta.value=ta.value.substring(0,s)+t+ta.value.substring(e);ta.focus();ta.selectionStart=ta.selectionEnd=s+t.length;}
 function saveMsg(){D.msg=el('msgA').value;sv();alert('✅ Guardado');}
@@ -1830,12 +1885,10 @@ function togSec(id){var e=el(id);if(!e)return;var o=e.style.display!=='none';e.s
 function copNums(){var ns=D.cl.filter(function(c){return c.cel;}).map(function(c){return cTel(c.cel);}).filter(Boolean);if(!ns.length){alert('No hay números');return;}var t=ns.join('\n');if(navigator.clipboard){navigator.clipboard.writeText(t).then(sCop).catch(function(){cpFb(t);});}else{cpFb(t);}}
 function cpFb(t){var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);sCop();}
 function sCop(){var e=el('cMsg');if(!e)return;e.style.display='block';setTimeout(function(){e.style.display='none';},2500);}
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 13: ACCIONES RÁPIDAS Y BIBLIOTECA                   ║
 // ║  Funciones: abrWA, copM, mBib/hBib/addBib/uBib/dBib/rBib    ║
 // ║             rMsgs, esC (es empresa?)                          ║
 // ║  Storage: D.bib[] — biblioteca de mensajes personalizados    ║
-// ╚══════════════════════════════════════════════════════════════╝
 function abrWA(id){var c=D.cl.find(function(x){return x.id===id;});if(!c)return;window.open(getWALink(c),'_blank');}
 function copM(id){var c=D.cl.find(function(x){return x.id===id;});if(!c)return;var t=getMsg(c);if(navigator.clipboard){navigator.clipboard.writeText(t);}else{cpFb(t);}var b=el('cb-'+id);if(b){b.textContent='✅';setTimeout(function(){b.textContent='📋 Copiar';},1500);}}
 function mBib(){el('fbib').style.display='block';}
@@ -1848,12 +1901,10 @@ function rMsgs(){var l=el('lmsgs');if(!l)return;if(!D.cl.length){l.innerHTML='<d
 
 // NAVEGAR
 function esC(t){return /^-?\d+\.?\d*\s*,\s*-?\d+\.?\d*$/.test(t.trim());}
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 14: NAVEGACIÓN Y MAPA                               ║
 // ║  Funciones: oMaps/oWaze/oMC/oWC (abrir navegadores)         ║
 // ║             togED/svDir/rNav (mapa Leaflet interno)          ║
 // ║             iniciarMapa, agregarPin, geocode, renderMapa     ║
-// ╚══════════════════════════════════════════════════════════════╝
 function oMaps(){var d=(el('nD').value||'').trim(),di=(el('nDi').value||'').trim();if(!d){alert('Ingresa dirección');return;}window.open(esC(d)?'https://www.google.com/maps?q='+encodeURIComponent(d):'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(d+(di?','+di:'')+',Lima,Peru'),'_blank');}
 function oWaze(){var d=(el('nD').value||'').trim(),di=(el('nDi').value||'').trim();if(!d){alert('Ingresa dirección');return;}if(esC(d)){var p=d.split(',');window.open('https://waze.com/ul?ll='+p[0].trim()+','+p[1].trim()+'&navigate=yes','_blank');}else{window.open('https://waze.com/ul?q='+encodeURIComponent(d+(di?','+di:'')+',Lima,Peru')+'&navigate=yes','_blank');}}
 function oMC(id){var c=D.cl.find(function(x){return x.id===id;});if(!c)return;var d=(c.dir||'').trim();window.open(esC(d)?'https://www.google.com/maps?q='+encodeURIComponent(d):'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(d+','+(c.dist||'')+',Lima,Peru'),'_blank');}
@@ -1890,12 +1941,10 @@ async function renderMapa(){
 function abrirTodosEnMaps(){if(!D.cl.length)return;var pts=D.cl.filter(function(c){return c.dir;}).map(function(c){return esC(c.dir.trim())?c.dir.trim():encodeURIComponent(c.dir+(c.dist?', '+c.dist:'')+', Lima, Peru');});if(!pts.length){alert('No hay direcciones');return;}window.open('https://www.google.com/maps/dir/'+pts.join('/'),'_blank');}
 
 // EXCEL CON EXCELJS
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 15: EXPORTAR ARCHIVOS                               ║
 // ║  Funciones: dlXls (Excel del día), dlCircuit, dlBackup       ║
 // ║             xlsHist, xlsData, impBackup (importar JSON)      ║
 // ║  Detección: esWebView() — Median, GoNative, Capacitor y WebView ║
-// ╚══════════════════════════════════════════════════════════════╝
 function esCapacitor(){
   return typeof window.Capacitor !== 'undefined' && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
 }
@@ -2113,13 +2162,17 @@ function mostrarPantallaDescarga(b64dataUri,nombre){
   document.body.appendChild(ov);
 }
 function compartirArchivo(blob,nombre,titulo){
-  // En WebView APK ir directo a descargaDirecta (WebView no soporta Share API)
-  if(esWebView()){descargaDirecta(blob,nombre);return;}
   var file=new File([blob],nombre,{type:blob.type});
+  // Intentar Share API nativa (funciona en Chrome y Capacitor APK)
   if(navigator.canShare&&navigator.canShare({files:[file]})){
     navigator.share({files:[file],title:'RiderTrack — '+nombre,text:titulo||nombre})
-      .catch(function(){descargaDirecta(blob,nombre);});
-  }else{descargaDirecta(blob,nombre);}
+      .catch(function(e){
+        // Si el usuario canceló no hacer nada, si fue error hacer descarga
+        if(e&&e.name!=='AbortError') descargaDirecta(blob,nombre);
+      });
+  } else {
+    descargaDirecta(blob,nombre);
+  }
 }
 function getNombreArchivo(fn){var ahora=new Date();var fecha=[String(ahora.getDate()).padStart(2,'0'),String(ahora.getMonth()+1).padStart(2,'0'),ahora.getFullYear()].join('-');var hora=String(ahora.getHours()).padStart(2,'0')+'-'+String(ahora.getMinutes()).padStart(2,'0');return 'RutaDiaria_'+fn.replace(/\//g,'-')+'_'+hora+'.xlsx';}
 function dlXls(){xlsData(D.cl,new Date().toLocaleDateString('es-PE'));}
@@ -2198,10 +2251,8 @@ function xlsData(cl,fn){
     }else{descargaDirecta(blob,nombre);}
   });
 }
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  ARCHIVO EXCEL EN NUBE                                       ║
 // ║  Sube/descarga Excel por fecha desde Firebase Firestore      ║
-// ╚══════════════════════════════════════════════════════════════╝
 
 // Subir Excel de una ruta del historial a Firebase
 function subirExcelNube(id){
@@ -2438,7 +2489,6 @@ function dlBackupDirecto(){
     ctaBCP:D.ctaBCP, ctaIBK:D.ctaIBK, ctaBBVA:D.ctaBBVA, ctaOtra:D.ctaOtra,
     foto:D.foto||'',
     ts_config:localStorage.getItem('ts_config')||'',
-    odoo_cfg:localStorage.getItem('odoo_cfg')||''
   };
   var blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
   var nom='backup_ridertrack_'+new Date().toLocaleDateString('es-PE').replace(/\//g,'-')+'.json';
@@ -2477,7 +2527,6 @@ function dlBackup(){
     foto:D.foto||'',
     // Tema y Odoo
     ts_config:localStorage.getItem('ts_config')||'',
-    odoo_cfg:localStorage.getItem('odoo_cfg')||''
   };
   var blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
   var nom='backup_ridertrack_'+new Date().toLocaleDateString('es-PE').replace(/\//g,'-')+'.json';
@@ -2500,19 +2549,19 @@ function impBackup(inp){
       if(d.light!==undefined){D.light=d.light;document.body.classList.toggle('L',D.light);}
       if(d.ac){D.ac=d.ac;D.ac2=d.ac2||d.ac;document.documentElement.style.setProperty('--ac',D.ac);document.documentElement.style.setProperty('--ac2',D.ac2);}
       ['myYape','empYape','ctaBCP','ctaIBK','ctaBBVA','ctaOtra'].forEach(function(k){if(d[k]!==undefined){D[k]=d[k];if(el(k))el(k).value=d[k];}});
+      // Limpiar datos corruptos antes de renderizar
+      D.cl = (D.cl||[]).map(function(c){ c.nombre=c.nombre||'Sin nombre'; c.st=c.st||'pendiente'; return c; });
+      D.hist = (D.hist||[]).map(function(h){ h.fecha=h.fecha||''; h.cl=(h.cl||[]).map(function(c){c.nombre=c.nombre||'Sin nombre';return c;}); return h; });
       sv();render();cerrarMenu();alert('✅ Backup restaurado!\n🛵 Clientes: '+D.cl.length+'\n📚 Rutas: '+D.hist.length);
     }catch(er){alert('❌ Error: '+er.message);}
   };
   r.readAsText(f);inp.value='';
 }
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 16: QR DE COBRO                                     ║
 // ║  Funciones: abrirQR/cerrarQR/togQR, subirQR, cargarQRImg     ║
 // ║             editarCampo, compartirQR, descargarQRImg, ampQR  ║
 // ║  QR tipos: yape-personal, plin, yape-empresa                 ║
-// ╚══════════════════════════════════════════════════════════════╝
 function capImg(sid,nom){var e=el(sid);if(!e)return;function doC(){var bg=D.light?'#ffffff':'#111827';html2canvas(e,{backgroundColor:bg,scale:2,useCORS:true,logging:false}).then(function(cv){cv.toBlob(function(blob){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nom+'_'+new Date().toLocaleDateString('es-PE').replace(/\//g,'-')+'.png';document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(a.href);},1000);},'image/png');});}if(typeof html2canvas!=='undefined'){doC();}else{var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';s.onload=doC;document.head.appendChild(s);}}
-
 
 // ===== QR YAPE / PLIN =====
 function abrirQR(){
@@ -2694,11 +2743,9 @@ function ampQR(tipo){
   document.body.appendChild(div);
 }
 
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN REPROGRAMADOS                                       ║
 // ║  Biblioteca de pedidos fallidos/reprogramados                ║
 // ║  Auto-guarda al marcar fallo · expira 7 días · reagenda      ║
-// ╚══════════════════════════════════════════════════════════════╝
 
 var REPROG_DIAS = 7; // días antes de expirar
 
@@ -2742,8 +2789,6 @@ function rpGuardar(cliente){
     nota: cliente.nota || '',
     guardadoTs: Date.now(),
     guardadoFecha: new Date().toLocaleDateString('es-PE',{day:'2-digit',month:'short'}),
-    odoo_id: cliente.odoo_id || null,
-    odoo_name: cliente.odoo_name || null
   });
   sv();
   rpUpdBadge();
@@ -2861,7 +2906,6 @@ function rpTogDet(id){
 function rpAgregarUno(id){
   var r = (D.reprog||[]).find(function(x){ return x.id===id; });
   if(!r) return;
-  // Crear nuevo cliente con nuevo id para no chocar
   var nuevo = JSON.parse(JSON.stringify(r));
   nuevo.id = Date.now();
   nuevo.st = 'pendiente';
@@ -2869,15 +2913,15 @@ function rpAgregarUno(id){
   nuevo.obs = (r.obs?r.obs+' | ':'')+'♻️ Reprogramado desde '+r.guardadoFecha;
   if(!D.cl) D.cl = [];
   D.cl.push(nuevo);
-  // Borrar de reprog
   D.reprog = D.reprog.filter(function(x){ return x.id!==id; });
-  sv(); render(); rReprog(); rpUpdBadge();
-  mostrarToast('✅ '+( r.nom||'Pedido')+' agregado a la ruta de hoy');
-  // Ir a la ruta
+  sv();
+  mostrarToast('✅ '+(r.nom||'Pedido')+' agregado a la ruta de hoy');
+  // Diferir render para no destruir DOM mientras procesa el click
   setTimeout(function(){
-    var nb = document.querySelectorAll('.nb')[0];
+    rReprog(); rpUpdBadge(); rLista(); rRes();
+    var nb = el('nb-ruta');
     if(nb) goTo('ruta', nb);
-  }, 800);
+  }, 100);
 }
 
 // --- Agregar seleccionados ---
@@ -2899,12 +2943,13 @@ function rpAgregarSeleccionados(){
     D.reprog = D.reprog.filter(function(x){ return x.id!==id; });
     agregados++;
   });
-  sv(); render(); rReprog(); rpUpdBadge();
+  sv();
   mostrarToast('✅ '+agregados+' pedido(s) agregado(s) a la ruta');
   setTimeout(function(){
-    var nb = document.querySelectorAll('.nb')[0];
+    rReprog(); rpUpdBadge(); rLista(); rRes();
+    var nb = el('nb-ruta');
     if(nb) goTo('ruta', nb);
-  }, 900);
+  }, 100);
 }
 
 // --- Borrar uno ---
@@ -2928,277 +2973,6 @@ function rpBorrarSeleccionados(){
   sv(); rReprog(); rpUpdBadge();
 }
 
-// ╔══════════════════════════════════════════════════════════════╗
-// ║  SECCIÓN ODOO SYNC                                           ║
-// ║  Conexión con Odoo vía XML-RPC / JSON-RPC                    ║
-// ║  Importa entregas pendientes → gestiona → reporta estado     ║
-// ╚══════════════════════════════════════════════════════════════╝
-
-// --- CONFIG ODOO (el usuario la guarda en localStorage) ---
-function getOdooCfg(){
-  return JSON.parse(localStorage.getItem('odoo_cfg')||'{}');
-}
-function saveOdooCfg(cfg){
-  localStorage.setItem('odoo_cfg',JSON.stringify(cfg));
-}
-
-// --- LLAMADA JSON-RPC A ODOO ---
-async function odooCall(url, service, method, args){
-  var cfg = getOdooCfg();
-  var resp = await fetch(cfg.url+'/web/dataset/call_kw', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      jsonrpc:'2.0', method:'call', id:1,
-      params:{
-        service: service,
-        method: method,
-        args: args
-      }
-    })
-  });
-  var data = await resp.json();
-  if(data.error) throw new Error(data.error.data&&data.error.data.message || JSON.stringify(data.error));
-  return data.result;
-}
-
-// --- LOGIN EN ODOO ---
-async function odooLogin(odooUrl, db, user, pass){
-  var resp = await fetch(odooUrl+'/web/session/authenticate', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      jsonrpc:'2.0', method:'call', id:1,
-      params:{db:db, login:user, password:pass}
-    }),
-    credentials:'include'
-  });
-  var data = await resp.json();
-  if(!data.result || !data.result.uid) throw new Error('Usuario o contraseña incorrectos');
-  return data.result.uid;
-}
-
-// --- TRAER ENTREGAS PENDIENTES DESDE ODOO ---
-async function odooGetEntregas(){
-  var cfg = getOdooCfg();
-  // Buscar picking de tipo delivery asignados al usuario actual, en estado ready/assigned
-  var pickings = await odooCall(cfg.url,'object','execute_kw',[
-    cfg.db, cfg.uid, cfg.pass,
-    'stock.picking','search_read',
-    [[
-      ['picking_type_code','=','outgoing'],
-      ['state','in',['assigned','confirmed','waiting']]
-    ]],
-    {fields:['name','partner_id','scheduled_date','state','move_ids_without_package','note','origin'],limit:80}
-  ]);
-  return pickings;
-}
-
-// --- CONVERTIR PICKING ODOO → CLIENTE RIDERTRACK ---
-function odooPickingToCliente(p, idx){
-  var nombre = p.partner_id ? p.partner_id[1] : 'Sin nombre';
-  var fecha = p.scheduled_date ? p.scheduled_date.split(' ')[0] : '';
-  return {
-    id: Date.now()+idx,
-    nom: nombre,
-    dir: '',
-    dist: '',
-    cel: '',
-    precio: 0,
-    cobrar: 0,
-    st: 'pendiente',
-    hora: '',
-    obs: 'Pedido Odoo: '+p.name+(p.origin?' | '+p.origin:''),
-    nota: '',
-    odoo_id: p.id,
-    odoo_name: p.name,
-    odoo_state: p.state,
-    importado: new Date().toISOString()
-  };
-}
-
-// --- REPORTAR ESTADO DE ENTREGA A ODOO ---
-async function odooReportarEstado(odoo_id, estado, notas){
-  var cfg = getOdooCfg();
-  // Mapeo de estados RiderTrack → Odoo
-  var accion = null;
-  if(['efectivo','yape-rudy','yape-efectivo','yape-plin','transferencia','pos','pago-link','jose-smith','cambio','empresa','mixto'].includes(estado)){
-    // Validar / marcar como entregado
-    accion = 'button_validate';
-  }
-  // Escribir nota interna siempre
-  try {
-    await odooCall(cfg.url,'object','execute_kw',[
-      cfg.db, cfg.uid, cfg.pass,
-      'stock.picking','write',
-      [[odoo_id],{note: (notas||'')+'[RiderTrack: '+estado+']'}]
-    ]);
-  } catch(e){}
-  // Si es entregado, intentar validar
-  if(accion==='button_validate'){
-    try {
-      await odooCall(cfg.url,'object','execute_kw',[
-        cfg.db, cfg.uid, cfg.pass,
-        'stock.picking',accion,
-        [[odoo_id]]
-      ]);
-      return {ok:true, msg:'✅ Marcado como entregado en Odoo'};
-    } catch(e){
-      return {ok:false, msg:'⚠️ No se pudo validar automáticamente (puede requerir cantidades). Nota guardada.'};
-    }
-  }
-  return {ok:true, msg:'📝 Estado "'+estado+'" anotado en Odoo'};
-}
-
-// --- ABRIR MODAL ODOO ---
-function abrirOdoo(){
-  var cfg = getOdooCfg();
-  var ov = document.createElement('div');
-  ov.id='odoo-modal-ov';
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:6000;display:flex;align-items:flex-end;justify-content:center;overflow:hidden';
-  document.body.style.overflow='hidden';
-
-  var panel = document.createElement('div');
-  panel.style.cssText='background:var(--s1);border-radius:24px 24px 0 0;padding:20px 18px 160px;width:100%;max-width:430px;border-top:3px solid #7B5EA7;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain';
-
-  panel.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
-      <div style="font-size:1rem;font-weight:800;color:#c5b3e6;letter-spacing:0.05em;text-transform:uppercase">🔗 Sincronizar con Odoo</div>
-      <button onclick="cerrarOdoo()" style="background:var(--s2);border:none;border-radius:50%;width:32px;height:32px;font-size:1rem;cursor:pointer;color:var(--muted)">✕</button>
-    </div>
-
-    <!-- CONFIG -->
-    <div id="odoo-sec-cfg">
-      <div style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;font-weight:700;margin-bottom:10px">⚙️ Configuración de conexión</div>
-      <div class="ig"><label>URL de Odoo</label>
-        <input type="url" id="odoo-url" placeholder="https://odoo-209779-0.cloudclusters.net" value="${cfg.url||'https://odoo-209779-0.cloudclusters.net'}" style="font-size:0.8rem">
-      </div>
-      <div class="ig"><label>Base de datos</label>
-        <input type="text" id="odoo-db" placeholder="admin" value="${cfg.db||'admin'}" style="font-size:0.8rem">
-      </div>
-      <div class="ig"><label>Tu usuario (email o login)</label>
-        <input type="text" id="odoo-user" placeholder="tu@email.com" value="${cfg.user||''}" style="font-size:0.8rem">
-      </div>
-      <div class="ig"><label>Contraseña</label>
-        <input type="password" id="odoo-pass" placeholder="••••••••" value="${cfg.pass||''}" style="font-size:0.8rem">
-      </div>
-      <button onclick="odooConectar()" style="width:100%;padding:13px;background:linear-gradient(135deg,#7B2CBF,#5a189a);border:none;border-radius:12px;color:#fff;font-weight:800;cursor:pointer;font-size:0.9rem;margin-bottom:8px">
-        🔌 Conectar con Odoo
-      </button>
-      <div id="odoo-conn-status" style="font-size:0.78rem;text-align:center;color:var(--muted);min-height:22px"></div>
-    </div>
-
-    <!-- ACCIONES (se muestra tras conectar) -->
-    <div id="odoo-sec-acc" style="display:${cfg.uid?'block':'none'}">
-      <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:0.78rem;color:#10B981;font-weight:700">
-        ✅ Conectado como <span id="odoo-usr-lbl">${cfg.user||''}</span>
-        <button onclick="odooDesconectar()" style="float:right;background:none;border:none;color:var(--danger);cursor:pointer;font-size:0.75rem">Cerrar sesión</button>
-      </div>
-
-      <button onclick="odooImportar()" style="width:100%;padding:13px;background:linear-gradient(135deg,#0077B6,#023e8a);border:none;border-radius:12px;color:#fff;font-weight:800;cursor:pointer;font-size:0.9rem;margin-bottom:10px">
-        📥 Importar mis entregas pendientes
-      </button>
-
-      <button onclick="odooSincronizarEstados()" style="width:100%;padding:13px;background:linear-gradient(135deg,#10B981,#065f46);border:none;border-radius:12px;color:#fff;font-weight:800;cursor:pointer;font-size:0.9rem;margin-bottom:10px">
-        🔄 Reportar estados a Odoo
-      </button>
-
-      <div id="odoo-result" style="margin-top:6px;font-size:0.8rem;color:var(--text);background:var(--s2);border-radius:10px;padding:12px;min-height:40px;display:none"></div>
-    </div>
-  `;
-
-  ov.appendChild(panel);
-  ov.onclick = function(e){ if(e.target===ov) cerrarOdoo(); };
-  document.body.appendChild(ov);
-}
-
-function cerrarOdoo(){
-  var ov=document.getElementById('odoo-modal-ov');
-  if(ov){ov.remove();}
-  document.body.style.overflow='auto';
-}
-
-async function odooConectar(){
-  var url=(document.getElementById('odoo-url').value||'').trim().replace(/\/$/,'');
-  var db=(document.getElementById('odoo-db').value||'').trim();
-  var user=(document.getElementById('odoo-user').value||'').trim();
-  var pass=(document.getElementById('odoo-pass').value||'').trim();
-  var st=document.getElementById('odoo-conn-status');
-  if(!url||!db||!user||!pass){st.textContent='⚠️ Completa todos los campos';st.style.color='var(--warn)';return;}
-  st.textContent='⏳ Conectando...';st.style.color='var(--muted)';
-  try {
-    var uid = await odooLogin(url, db, user, pass);
-    var cfg={url,db,user,pass,uid};
-    saveOdooCfg(cfg);
-    st.textContent='✅ ¡Conectado correctamente!';st.style.color='#10B981';
-    var acc=document.getElementById('odoo-sec-acc');
-    if(acc){acc.style.display='block';}
-    var lbl=document.getElementById('odoo-usr-lbl');
-    if(lbl)lbl.textContent=user;
-    setTimeout(function(){st.textContent='';},2500);
-  } catch(e){
-    st.textContent='❌ Error: '+e.message;st.style.color='var(--danger)';
-  }
-}
-
-function odooDesconectar(){
-  localStorage.removeItem('odoo_cfg');
-  var acc=document.getElementById('odoo-sec-acc');
-  if(acc)acc.style.display='none';
-  var st=document.getElementById('odoo-conn-status');
-  if(st){st.textContent='Sesión cerrada';st.style.color='var(--muted)';}
-}
-
-async function odooImportar(){
-  var res=document.getElementById('odoo-result');
-  if(res){res.style.display='block';res.innerHTML='⏳ Obteniendo entregas de Odoo...';}
-  try {
-    var pickings = await odooGetEntregas();
-    if(!pickings||pickings.length===0){
-      if(res)res.innerHTML='📭 No hay entregas pendientes asignadas en Odoo.';
-      return;
-    }
-    // Filtrar los que ya están importados
-    var yaIds=(D.cl||[]).filter(function(c){return c.odoo_id;}).map(function(c){return c.odoo_id;});
-    var nuevos=pickings.filter(function(p){return !yaIds.includes(p.id);});
-    if(nuevos.length===0){
-      if(res)res.innerHTML='✅ Todas las entregas ya están en tu RiderTrack ('+pickings.length+' total).';
-      return;
-    }
-    // Agregar a D.cl
-    nuevos.forEach(function(p,i){
-      D.cl.push(odooPickingToCliente(p,i));
-    });
-    sv(); render();
-    if(res)res.innerHTML='✅ <b>'+nuevos.length+' entrega(s) importada(s)</b> a tu ruta.<br><span style="font-size:0.72rem;color:var(--muted)">'+nuevos.map(function(p){return '• '+p.name+' — '+(p.partner_id?p.partner_id[1]:'');}).join('<br>')+'</span>';
-    mostrarToast('✅ '+nuevos.length+' entregas importadas de Odoo');
-  } catch(e){
-    if(res)res.innerHTML='❌ Error al importar: '+e.message+'<br><span style="font-size:0.7rem;color:var(--muted)">Verifica la conexión o pide al admin que habilite el acceso API.</span>';
-  }
-}
-
-async function odooSincronizarEstados(){
-  var res=document.getElementById('odoo-result');
-  if(res){res.style.display='block';res.innerHTML='⏳ Sincronizando estados...';}
-  // Solo los que vienen de Odoo y ya tienen estado definido (no pendiente)
-  var conOdoo=(D.cl||[]).filter(function(c){return c.odoo_id && c.st && c.st!=='pendiente';});
-  if(conOdoo.length===0){
-    if(res)res.innerHTML='📭 No hay entregas de Odoo con estado actualizado para reportar.';
-    return;
-  }
-  var lineas=[];
-  for(var i=0;i<conOdoo.length;i++){
-    var c=conOdoo[i];
-    try{
-      var r=await odooReportarEstado(c.odoo_id, c.st, c.nota||c.obs||'');
-      lineas.push((r.ok?'✅':'⚠️')+' '+c.odoo_name+' → '+c.st+': '+r.msg);
-    }catch(e){
-      lineas.push('❌ '+c.odoo_name+': '+e.message);
-    }
-  }
-  if(res)res.innerHTML='<b>Reporte de sincronización:</b><br>'+lineas.map(function(l){return '<span style="font-size:0.75rem">'+l+'</span>';}).join('<br>');
-}
-
 function mostrarToast(msg){
   var t=document.createElement('div');
   t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1E1E24;color:#fff;padding:10px 20px;border-radius:20px;font-size:0.82rem;font-weight:700;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);white-space:nowrap;animation:fadeIn 0.3s ease';
@@ -3207,37 +2981,35 @@ function mostrarToast(msg){
   setTimeout(function(){t.remove();},2800);
 }
 
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 17: APPS EXTERNAS                                   ║
 // ║  abrirClientes() → abre clientetrack.html (mismo dominio)    ║
 // ║  abrirMoto() → abre moto.html                                ║
-// ╚══════════════════════════════════════════════════════════════╝
+// URLs de las apps TrackVerse en Netlify
+var URL_CLIENTETRACK = 'clientetrack.html'; // mismo dominio Netlify → localStorage compartido
+var URL_MOTO         = 'moto.html'; // mismo sitio Netlify RiderTrack
+
 function abrirClientes(){
   cerrarMenu();
+  // Median WebView: navega dentro del APK sin abrir navegador externo
   if(typeof median!=='undefined'||typeof gonative!=='undefined'||esWebView()){
-    window.location.href='clientetrack.html';
-  }else{
-    window.open('clientetrack.html','_blank');
+    window.location.href = URL_CLIENTETRACK;
+  } else {
+    window.open(URL_CLIENTETRACK, '_blank');
   }
 }
 function abrirMoto(){
   cerrarMenu();
-  // En Median APK navega dentro del WebView
   if(typeof median!=='undefined'||typeof gonative!=='undefined'||esWebView()){
-    window.location.href='moto.html';
+    window.location.href = URL_MOTO;
   } else {
-    window.open('moto.html','_blank');
+    window.open(URL_MOTO, '_blank');
   }
 }
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  SECCIÓN 18: INICIALIZACIÓN                                  ║
 // ║  render() llama: rLista, rRes, rHist, rMsgs, rNav, rBib     ║
 // ║  syncThemeBtn() sincroniza ícono del botón de tema           ║
-// ╚══════════════════════════════════════════════════════════════╝
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  THEME STUDIO                                                ║
 // ║  Luminosidad · Temas · Estilos · Fondo Animado · Fuente      ║
-// ╚══════════════════════════════════════════════════════════════╝
 
 var TS_DEFAULTS = {lum:'deep',tema:'purple',estilo:'elegante',fondo:'ninguno',compacto:false,fontSize:100,customColor:'',glassOpacity:0.65,fuente:'outfit',radio:'redondeado',anim:'normal'};
 
@@ -3547,6 +3319,31 @@ function tsCompactoChange(checked){
   var track=knob?knob.parentElement:null;
   if(track)track.style.background=checked?'var(--ac)':'var(--border)';
 }
+function editarFechaHist(id){
+  var h = D.hist.find(function(x){ return x.id===id; });
+  if(!h) return;
+  var fechaActual = h.fechaId || '';
+  var nueva = prompt('📅 Cambiar fecha de esta ruta\nFormato: AAAA-MM-DD\nFecha actual: '+fechaActual, fechaActual);
+  if(!nueva || nueva===fechaActual) return;
+  // Validar formato
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(nueva.trim())){
+    alert('Formato incorrecto. Usa AAAA-MM-DD\nEjemplo: 2026-06-10');
+    return;
+  }
+  var d = new Date(nueva.trim()+'T00:00:00');
+  if(isNaN(d.getTime())){ alert('Fecha inválida'); return; }
+  h.fechaId = nueva.trim();
+  // Actualizar también los campos de texto legibles
+  h.fecha = d.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'});
+  h.fechaL = d.toLocaleDateString('es-PE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  sv();
+  // Re-renderizar
+  if(calVisible) renderCal();
+  var det = el('cal-detalle');
+  if(det) det.style.display='none';
+  mostrarToast('✅ Fecha actualizada a '+h.fecha);
+}
+
 function render(){rLista();rRes();rHist();rMsgs();rNav();rBib();rReprog();rpUpdBadge();}
 
 // Aplicar Theme Studio PRIMERO antes de render para evitar parpadeo
@@ -3583,10 +3380,8 @@ function hablarResumen(){
   window.speechSynthesis.speak(u);
 }
 
-// ╔══════════════════════════════════════════════════════════════╗
 // ║  VOZ AL ABRIR — RiderTrack                                   ║
 // ║  Lee resumen de pedidos al iniciar la app                    ║
-// ╚══════════════════════════════════════════════════════════════╝
 setTimeout(function(){
   try {
     if(!D.cl||!D.cl.length) return;
@@ -3658,228 +3453,6 @@ setTimeout(function(){
   mostrarResumenImport(D.cl.length, mz, ref, ok);
 }, 5500); // Esperar que termine el splash (4s) antes de mostrar
 
-// ╔══════════════════════════════════════════════════════════════╗
-// ║  SPOTIFY CONTROL — RiderTrack                                ║
-// ║  Client ID: dc6290fec2bf41479720514ae68b8a26                 ║
-// ╚══════════════════════════════════════════════════════════════╝
-var SPOTIFY_CLIENT_ID = 'dc6290fec2bf41479720514ae68b8a26';
-var SPOTIFY_REDIRECT   = 'https://ridertrack.github.io/callback';
-var SPOTIFY_SCOPES     = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
-var _spToken = null;
-var _spInterval = null;
-
-// ── Auth con PKCE (sin backend) ──────────────────────────────────
-function spLogin(){
-  var verifier = spRandomStr(64);
-  localStorage.setItem('sp_verifier', verifier);
-  spChallenge(verifier).then(function(challenge){
-    var url = 'https://accounts.spotify.com/authorize'
-      + '?client_id=' + SPOTIFY_CLIENT_ID
-      + '&response_type=code'
-      + '&redirect_uri=' + encodeURIComponent(SPOTIFY_REDIRECT)
-      + '&scope=' + encodeURIComponent(SPOTIFY_SCOPES)
-      + '&code_challenge_method=S256'
-      + '&code_challenge=' + challenge;
-    window.location.href = url;
-  });
-}
-
-function spRandomStr(len){
-  var arr = new Uint8Array(len);
-  window.crypto.getRandomValues(arr);
-  return btoa(String.fromCharCode.apply(null,arr)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'').substring(0,len);
-}
-
-async function spChallenge(verifier){
-  var data = new TextEncoder().encode(verifier);
-  var digest = await window.crypto.subtle.digest('SHA-256', data);
-  return btoa(String.fromCharCode.apply(null, new Uint8Array(digest))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-}
-
-async function spExchangeCode(code){
-  var verifier = localStorage.getItem('sp_verifier');
-  var resp = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: {'Content-Type':'application/x-www-form-urlencoded'},
-    body: new URLSearchParams({
-      client_id: SPOTIFY_CLIENT_ID,
-      grant_type: 'authorization_code',
-      code: code,
-      redirect_uri: SPOTIFY_REDIRECT,
-      code_verifier: verifier
-    })
-  });
-  var data = await resp.json();
-  if(data.access_token){
-    _spToken = data.access_token;
-    localStorage.setItem('sp_token', data.access_token);
-    localStorage.setItem('sp_refresh', data.refresh_token);
-    localStorage.setItem('sp_expires', Date.now() + (data.expires_in*1000));
-    return true;
-  }
-  return false;
-}
-
-async function spRefreshToken(){
-  var refresh = localStorage.getItem('sp_refresh');
-  if(!refresh) return false;
-  var resp = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: {'Content-Type':'application/x-www-form-urlencoded'},
-    body: new URLSearchParams({
-      client_id: SPOTIFY_CLIENT_ID,
-      grant_type: 'refresh_token',
-      refresh_token: refresh
-    })
-  });
-  var data = await resp.json();
-  if(data.access_token){
-    _spToken = data.access_token;
-    localStorage.setItem('sp_token', data.access_token);
-    localStorage.setItem('sp_expires', Date.now() + (data.expires_in*1000));
-    return true;
-  }
-  return false;
-}
-
-async function spGetToken(){
-  var expires = parseInt(localStorage.getItem('sp_expires')||'0');
-  if(Date.now() > expires - 60000){
-    await spRefreshToken();
-  }
-  return localStorage.getItem('sp_token');
-}
-
-async function spAPI(method, endpoint, body){
-  var token = await spGetToken();
-  if(!token) return null;
-  var opts = {method: method, headers:{'Authorization':'Bearer '+token}};
-  if(body){ opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
-  var resp = await fetch('https://api.spotify.com/v1'+endpoint, opts);
-  if(resp.status === 204 || resp.status === 202) return {};
-  if(resp.status === 401){ await spRefreshToken(); return null; }
-  try{ return await resp.json(); } catch(e){ return {}; }
-}
-
-// ── Controles ────────────────────────────────────────────────────
-async function spPlay(){  await spAPI('PUT',  '/me/player/play'); spActualizar(); }
-async function spPause(){ await spAPI('PUT',  '/me/player/pause'); spActualizar(); }
-async function spNext(){  await spAPI('POST', '/me/player/next'); setTimeout(spActualizar,500); }
-async function spPrev(){  await spAPI('POST', '/me/player/previous'); setTimeout(spActualizar,500); }
-
-async function spActualizar(){
-  var data = await spAPI('GET', '/me/player/currently-playing');
-  if(!data || !data.item) return;
-  var nombre = data.item.name;
-  var artista = data.item.artists.map(function(a){return a.name;}).join(', ');
-  var portada = data.item.album && data.item.album.images && data.item.album.images[0] ? data.item.album.images[0].url : '';
-  var playing = data.is_playing;
-  // Actualizar UI del modal
-  var t = el('sp-track'); if(t) t.textContent = nombre;
-  var a = el('sp-artist'); if(a) a.textContent = artista;
-  var img = el('sp-cover'); if(img && portada) img.src = portada;
-  var btn = el('sp-playpause'); if(btn) btn.textContent = playing ? '⏸️' : '▶️';
-  // Actualizar botón header
-  var hBtn = el('btnSpotify'); if(hBtn) hBtn.style.borderColor = playing ? 'rgba(30,215,96,0.8)' : 'rgba(30,215,96,0.3)';
-}
-
-// ── Modal Spotify ─────────────────────────────────────────────────
-function abrirSpotify(){
-  var token = localStorage.getItem('sp_token');
-  var expires = parseInt(localStorage.getItem('sp_expires')||'0');
-  var logueado = token && Date.now() < expires + 3600000;
-
-  var ov = document.createElement('div');
-  ov.id = 'sp-modal-ov';
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:6000;display:flex;align-items:flex-end;justify-content:center;overflow:hidden';
-  document.body.style.overflow = 'hidden';
-
-  var panel = document.createElement('div');
-  panel.style.cssText = 'background:var(--s1);border-radius:24px 24px 0 0;padding:20px 18px 50px;width:100%;max-width:430px;border-top:3px solid #1ED760';
-
-  if(!logueado){
-    panel.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-        <div style="font-size:1rem;font-weight:800;color:#1ED760;letter-spacing:0.05em">🎵 SPOTIFY</div>
-        <button onclick="cerrarSpotify()" style="background:var(--s2);border:none;border-radius:50%;width:32px;height:32px;font-size:1rem;cursor:pointer;color:var(--muted)">✕</button>
-      </div>
-      <div style="text-align:center;padding:20px 0">
-        <div style="font-size:3rem;margin-bottom:12px">🎵</div>
-        <div style="font-size:0.9rem;color:var(--muted);margin-bottom:20px">Conecta tu cuenta Spotify para controlar la música mientras repartes</div>
-        <button onclick="spLogin()" style="width:100%;padding:14px;background:#1ED760;border:none;border-radius:12px;color:#000;font-weight:800;font-size:1rem;cursor:pointer">Conectar con Spotify</button>
-      </div>`;
-  } else {
-    panel.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div style="font-size:1rem;font-weight:800;color:#1ED760;letter-spacing:0.05em">🎵 SPOTIFY</div>
-        <button onclick="cerrarSpotify()" style="background:var(--s2);border:none;border-radius:50%;width:32px;height:32px;font-size:1rem;cursor:pointer;color:var(--muted)">✕</button>
-      </div>
-      <div style="display:flex;align-items:center;gap:14px;background:var(--s2);border-radius:16px;padding:14px;margin-bottom:16px">
-        <img id="sp-cover" src="" style="width:60px;height:60px;border-radius:10px;object-fit:cover;background:#333" onerror="this.style.background='#1ED760'">
-        <div style="flex:1;min-width:0">
-          <div id="sp-track" style="font-weight:700;font-size:0.92rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Cargando...</div>
-          <div id="sp-artist" style="font-size:0.75rem;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div>
-        </div>
-      </div>
-      <div style="display:flex;justify-content:center;gap:16px;margin-bottom:16px">
-        <button onclick="spPrev()" style="background:var(--s2);border:none;border-radius:50%;width:50px;height:50px;font-size:1.4rem;cursor:pointer">⏮️</button>
-        <button id="sp-playpause" onclick="spToggle()" style="background:#1ED760;border:none;border-radius:50%;width:56px;height:56px;font-size:1.6rem;cursor:pointer">▶️</button>
-        <button onclick="spNext()" style="background:var(--s2);border:none;border-radius:50%;width:50px;height:50px;font-size:1.4rem;cursor:pointer">⏭️</button>
-      </div>
-      <button onclick="spLogout()" style="width:100%;padding:10px;background:none;border:1px solid rgba(255,51,85,0.3);border-radius:10px;color:var(--danger);font-size:0.8rem;cursor:pointer;font-family:Outfit,sans-serif">Desconectar Spotify</button>`;
-    setTimeout(spActualizar, 300);
-    if(_spInterval) clearInterval(_spInterval);
-    _spInterval = setInterval(spActualizar, 5000);
-  }
-
-  ov.appendChild(panel);
-  ov.onclick = function(e){ if(e.target===ov) cerrarSpotify(); };
-  document.body.appendChild(ov);
-}
-
-async function spToggle(){
-  var data = await spAPI('GET', '/me/player');
-  if(!data) return;
-  if(data.is_playing){ await spPause(); } else { await spPlay(); }
-}
-
-function cerrarSpotify(){
-  var ov = document.getElementById('sp-modal-ov');
-  if(ov) ov.remove();
-  document.body.style.overflow = 'auto';
-  if(_spInterval){ clearInterval(_spInterval); _spInterval=null; }
-}
-
-function spLogout(){
-  localStorage.removeItem('sp_token');
-  localStorage.removeItem('sp_refresh');
-  localStorage.removeItem('sp_expires');
-  _spToken = null;
-  cerrarSpotify();
-  mostrarToast('Spotify desconectado');
-}
-
-// ── Manejar callback de Spotify al volver ─────────────────────────
-(function(){
-  // Detectar código de Spotify desde callback
-  var params = new URLSearchParams(window.location.search);
-  var spCode = params.get('sp_code') || localStorage.getItem('sp_auth_code');
-  if(spCode){
-    localStorage.removeItem('sp_auth_code');
-    window.history.replaceState({}, document.title, window.location.pathname);
-    spExchangeCode(spCode).then(function(ok){
-      if(ok){
-        mostrarToast('✅ Spotify conectado');
-      } else {
-        mostrarToast('❌ Error al conectar Spotify');
-      }
-    });
-  }
-  // Restaurar token guardado
-  _spToken = localStorage.getItem('sp_token');
-})();
-
-
 // ── CORRECTOR DE FECHAS DEL HISTORIAL ──────────────────────────
 function corregirFechasHistorial(){
   if(!D.hist||!D.hist.length){mostrarToast('No hay historial');return;}
@@ -3907,5 +3480,697 @@ function corregirFechasHistorial(){
 
 </script>
 </div><!-- /app-container -->
+<!-- Modal API Key -->
+<div id="modal-apikey" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);align-items:flex-end;justify-content:center;">
+  <div style="background:var(--s1,#161820);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 18px 32px;border:1px solid rgba(255,255,255,0.08);border-bottom:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-size:1rem;font-weight:800;">🤖 API Key Anthropic</div>
+      <button onclick="cerrarApiKey()" style="background:rgba(255,255,255,0.1);border:none;color:var(--text,#E8EAF0);border-radius:50%;width:30px;height:30px;font-size:0.9rem;cursor:pointer;">✕</button>
+    </div>
+    <p style="font-size:0.75rem;color:var(--muted,#7A7D96);margin-bottom:14px;">La API key se guarda solo en tu celular. Nunca se sube a ningún servidor.</p>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:0.7rem;color:var(--muted,#7A7D96);font-weight:700;text-transform:uppercase;margin-bottom:6px;">API Key (sk-ant-...)</label>
+      <input type="password" id="input-apikey" placeholder="sk-ant-api03-..." style="width:100%;background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.12);border-radius:12px;padding:11px 14px;color:var(--text,#E8EAF0);font-family:inherit;font-size:0.9rem;outline:none;">
+    </div>
+    <button onclick="guardarApiKey()" style="width:100%;padding:13px;border-radius:14px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;font-weight:700;font-size:0.9rem;cursor:pointer;">💾 Guardar API Key</button>
+    <button onclick="borrarApiKey()" style="width:100%;padding:10px;border-radius:12px;background:none;border:1px solid rgba(239,68,68,0.3);color:#f87171;font-size:0.78rem;cursor:pointer;margin-top:8px;">🗑 Borrar API Key guardada</button>
+  </div>
+</div>
+
+<script>
+function getRiderApiKey(){ return localStorage.getItem('rider_api_key')||''; }
+function abrirApiKey(){
+  var modal=document.getElementById('modal-apikey');
+  if(modal){ modal.style.display='flex'; document.getElementById('input-apikey').value=getRiderApiKey(); }
+}
+function cerrarApiKey(){ var m=document.getElementById('modal-apikey'); if(m) m.style.display='none'; }
+function guardarApiKey(){
+  var val=document.getElementById('input-apikey').value.trim();
+  if(!val){ alert('Ingresa la API key'); return; }
+  localStorage.setItem('rider_api_key', val);
+  cerrarApiKey();
+  alert('✅ API key guardada correctamente');
+}
+function borrarApiKey(){
+  if(!confirm('¿Borrar la API key guardada?')) return;
+  localStorage.removeItem('rider_api_key');
+  document.getElementById('input-apikey').value='';
+  alert('✅ API key eliminada');
+}
+// Cerrar modal tocando fuera
+document.getElementById('modal-apikey').addEventListener('click', function(e){ if(e.target===this) cerrarApiKey(); });
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     RIDERBOT FAB — Asistente IA de ruta con WhatsApp masivo
+     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════
+     RIDERBOT v3 — Rediseño completo
+     ═══════════════════════════════════════════════════════════ -->
+
+<!-- FAB con badge de pendientes -->
+<div id="riderbot-fab-wrap" style="position:fixed;bottom:80px;right:16px;z-index:4000">
+  <button id="riderbot-fab" onclick="abrirRiderBot()"
+    style="width:54px;height:54px;border-radius:50%;border:none;cursor:pointer;
+           background:linear-gradient(135deg,#7B2CBF,#5a189a);
+           box-shadow:0 4px 20px rgba(123,44,191,0.6);
+           display:flex;align-items:center;justify-content:center;
+           font-size:1.5rem;transition:transform 0.2s,box-shadow 0.2s;
+           -webkit-tap-highlight-color:transparent;position:relative">
+    🤖
+  </button>
+  <div id="rb-badge" style="display:none;position:absolute;top:-4px;right:-4px;
+       background:#EF4444;color:#fff;border-radius:50%;width:20px;height:20px;
+       font-size:0.65rem;font-weight:900;display:flex;align-items:center;
+       justify-content:center;border:2px solid var(--s1,#1A1B26);pointer-events:none"></div>
+</div>
+
+<!-- Overlay con blur -->
+<div id="riderbot-overlay" onclick="cerrarRiderBot()"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);
+         backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:4500;
+         opacity:0;transition:opacity 0.25s ease"></div>
+
+<!-- Panel principal rediseñado -->
+<div id="riderbot-panel"
+  style="display:none;position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);
+         width:100%;max-width:430px;z-index:4501;
+         background:var(--s1,#1A1B26);border-radius:24px 24px 0 0;
+         border-top:none;
+         max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+         overscroll-behavior:contain;padding:0 0 120px;
+         transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+         box-shadow:0 -8px 40px rgba(0,0,0,0.5)">
+
+  <!-- Header con gradiente -->
+  <div style="background:linear-gradient(135deg,#2d1b4e,#1a1026);border-radius:24px 24px 0 0;padding:0 0 16px">
+    <!-- Handle -->
+    <div style="display:flex;justify-content:center;padding:12px 0 0">
+      <div style="width:40px;height:4px;background:rgba(255,255,255,0.2);border-radius:4px"></div>
+    </div>
+    <!-- Header content -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px 0">
+      <div style="display:flex;align-items:center;gap:12px">
+        <!-- Avatar animado -->
+        <div style="position:relative">
+          <div style="width:44px;height:44px;border-radius:50%;
+                      background:linear-gradient(135deg,#9333ea,#7B2CBF);
+                      display:flex;align-items:center;justify-content:center;
+                      font-size:1.3rem;box-shadow:0 0 0 3px rgba(147,51,234,0.3)">🤖</div>
+          <div style="position:absolute;bottom:0;right:0;width:12px;height:12px;
+                      background:#10B981;border-radius:50%;border:2px solid #1a1026"></div>
+        </div>
+        <div>
+          <div style="font-weight:900;font-size:1rem;color:#fff;letter-spacing:0.02em">RiderBot</div>
+          <div style="font-size:0.62rem;color:#a78bfa;font-weight:700;text-transform:uppercase;
+                      letter-spacing:0.1em">Asistente IA · Ruta activa</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="rbAbrirConfig()" title="Configurar mensajes"
+          style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);
+                 border-radius:10px;padding:7px 10px;font-size:0.8rem;cursor:pointer;
+                 color:rgba(255,255,255,0.7);transition:background 0.2s"
+          onmouseenter="this.style.background='rgba(255,255,255,0.15)'"
+          onmouseleave="this.style.background='rgba(255,255,255,0.08)'">⚙️</button>
+        <button onclick="cerrarRiderBot()"
+          style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);
+                 border-radius:50%;width:34px;height:34px;font-size:0.9rem;cursor:pointer;
+                 color:rgba(255,255,255,0.7);transition:background 0.2s"
+          onmouseenter="this.style.background='rgba(255,255,255,0.15)'"
+          onmouseleave="this.style.background='rgba(255,255,255,0.08)'">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="riderbot-body" style="padding:16px 16px 0"></div>
+</div>
+
+<!-- Panel configuración mensajes -->
+<div id="riderbot-cfg-overlay" onclick="rbCerrarConfig()"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);
+         backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:4600"></div>
+<div id="riderbot-cfg-panel"
+  style="display:none;position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+         width:100%;max-width:430px;z-index:4601;
+         background:var(--s1,#1A1B26);border-radius:24px 24px 0 0;
+         border-top:3px solid #F59E0B;
+         max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+         overscroll-behavior:contain;padding:0 16px 120px">
+  <div style="display:flex;justify-content:center;padding:10px 0 0">
+    <div style="width:36px;height:4px;background:rgba(255,255,255,0.15);border-radius:4px"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 2px 0;margin-bottom:16px">
+    <div>
+      <div style="font-weight:800;font-size:0.95rem;color:var(--text,#E2E8F0)">⚙️ Mensajes WA</div>
+      <div style="font-size:0.65rem;color:#F59E0B;font-weight:700;margin-top:2px">Configura tus plantillas</div>
+    </div>
+    <button onclick="rbCerrarConfig()"
+      style="background:var(--s2,#2B2D3A);border:none;border-radius:50%;width:32px;height:32px;
+             font-size:1rem;cursor:pointer;color:var(--muted,#A5A6C4)">✕</button>
+  </div>
+
+  <!-- Tags chip-style -->
+  <div style="background:rgba(123,44,191,0.08);border:1px solid rgba(123,44,191,0.2);
+              border-radius:14px;padding:12px 14px;margin-bottom:16px">
+    <div style="font-size:0.6rem;color:#9b59b6;font-weight:800;text-transform:uppercase;
+                letter-spacing:0.1em;margin-bottom:8px">🏷️ Variables disponibles</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      <span style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);
+                   color:#a78bfa;border-radius:20px;padding:3px 10px;font-size:0.68rem;
+                   font-family:monospace;cursor:pointer"
+            onclick="rbInsertarTag(this.textContent)">{nombre}</span>
+      <span style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);
+                   color:#a78bfa;border-radius:20px;padding:3px 10px;font-size:0.68rem;
+                   font-family:monospace;cursor:pointer"
+            onclick="rbInsertarTag(this.textContent)">{producto}</span>
+      <span style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);
+                   color:#a78bfa;border-radius:20px;padding:3px 10px;font-size:0.68rem;
+                   font-family:monospace;cursor:pointer"
+            onclick="rbInsertarTag(this.textContent)">{cobrar}</span>
+      <span style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);
+                   color:#a78bfa;border-radius:20px;padding:3px 10px;font-size:0.68rem;
+                   font-family:monospace;cursor:pointer"
+            onclick="rbInsertarTag(this.textContent)">{direccion}</span>
+      <span style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);
+                   color:#a78bfa;border-radius:20px;padding:3px 10px;font-size:0.68rem;
+                   font-family:monospace;cursor:pointer"
+            onclick="rbInsertarTag(this.textContent)">{distrito}</span>
+      <span style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);
+                   color:#a78bfa;border-radius:20px;padding:3px 10px;font-size:0.68rem;
+                   font-family:monospace;cursor:pointer"
+            onclick="rbInsertarTag(this.textContent)">{celular}</span>
+    </div>
+    <div style="font-size:0.62rem;color:var(--muted,#A5A6C4);margin-top:8px">
+      💡 Toca una variable para insertar en el mensaje activo
+    </div>
+  </div>
+
+  <div style="margin-bottom:16px">
+    <div style="font-size:0.68rem;color:#10B981;font-weight:800;text-transform:uppercase;
+                letter-spacing:0.08em;margin-bottom:8px">✅ Mensaje — Dirección completa</div>
+    <textarea id="rb-msg-normal" rows="5"
+      style="width:100%;background:var(--s2,#2B2D3A);border:1.5px solid rgba(16,185,129,0.2);
+             border-radius:12px;padding:12px 14px;color:var(--text,#E2E8F0);font-family:inherit;
+             font-size:0.82rem;resize:vertical;outline:none;line-height:1.6;
+             box-sizing:border-box;transition:border-color 0.2s"
+      onfocus="this.style.borderColor='rgba(16,185,129,0.5)'"
+      onblur="this.style.borderColor='rgba(16,185,129,0.2)'"></textarea>
+  </div>
+
+  <div style="margin-bottom:20px">
+    <div style="font-size:0.68rem;color:#EF4444;font-weight:800;text-transform:uppercase;
+                letter-spacing:0.08em;margin-bottom:8px">🔴 Mensaje — Pedir ubicación</div>
+    <textarea id="rb-msg-ubicacion" rows="5"
+      style="width:100%;background:var(--s2,#2B2D3A);border:1.5px solid rgba(239,68,68,0.2);
+             border-radius:12px;padding:12px 14px;color:var(--text,#E2E8F0);font-family:inherit;
+             font-size:0.82rem;resize:vertical;outline:none;line-height:1.6;
+             box-sizing:border-box;transition:border-color 0.2s"
+      onfocus="this.style.borderColor='rgba(239,68,68,0.5)'"
+      onblur="this.style.borderColor='rgba(239,68,68,0.2)'"></textarea>
+  </div>
+
+  <button onclick="rbGuardarConfig()"
+    style="width:100%;padding:15px;background:linear-gradient(135deg,#F59E0B,#D97706);
+           border:none;border-radius:14px;color:#000;font-weight:900;font-size:0.95rem;
+           cursor:pointer;letter-spacing:0.03em;box-shadow:0 4px 14px rgba(245,158,11,0.4)">
+    💾 Guardar mensajes
+  </button>
+</div>
+
+<style>
+@keyframes rb-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+@keyframes rb-spin  { to{transform:rotate(360deg)} }
+@keyframes rb-fadein{ from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.rb-loading-dot { display:inline-block;width:8px;height:8px;border-radius:50%;
+                  background:#a78bfa;animation:rb-pulse 1s ease-in-out infinite }
+.rb-loading-dot:nth-child(2){animation-delay:0.2s}
+.rb-loading-dot:nth-child(3){animation-delay:0.4s}
+.rb-card-anim { animation:rb-fadein 0.25s ease both }
+</style>
+
+<script>
+// ═══════════════════════════════════════════════════
+// RIDERBOT v3
+// ═══════════════════════════════════════════════════
+
+var RB_MSG_NORMAL_DEFAULT =
+  'Hola {nombre} 👋, soy Rudy, tu repartidor.\n' +
+  'Ya salgo con tu pedido de *{producto}* (S/ {cobrar}) 🛵\n' +
+  'Dirección: 📍 {direccion}, {distrito}.\n' +
+  '¿Hay algún dato extra para encontrarte? ¡Gracias!';
+
+var RB_MSG_UBICACION_DEFAULT =
+  'Hola {nombre} 👋, soy Rudy, tu repartidor.\n' +
+  'Tengo tu *{producto}* (S/ {cobrar}) listo para entregarte 📦\n' +
+  'Tu dirección registrada es: {direccion}, {distrito}.\n' +
+  'Necesito tu *ubicación exacta* por WhatsApp para llegar. 📍\n' +
+  '¿Me la puedes compartir? ¡Muchas gracias! 🙏';
+
+function rbGetMsgNormal(){ return localStorage.getItem('rb_msg_normal')||RB_MSG_NORMAL_DEFAULT; }
+function rbGetMsgUbicacion(){ return localStorage.getItem('rb_msg_ubicacion')||RB_MSG_UBICACION_DEFAULT; }
+
+// Variable activa en config
+var _rbCfgActivo = 'normal';
+
+function rbInsertarTag(tag){
+  var id = _rbCfgActivo === 'normal' ? 'rb-msg-normal' : 'rb-msg-ubicacion';
+  var ta = document.getElementById(id);
+  if(!ta) return;
+  var s = ta.selectionStart, e = ta.selectionEnd;
+  ta.value = ta.value.substring(0,s) + tag + ta.value.substring(e);
+  ta.selectionStart = ta.selectionEnd = s + tag.length;
+  ta.focus();
+}
+
+function rbAplicarTags(tmpl, c){
+  return tmpl
+    .replace(/\{nombre\}/g,(c.nombre||'').split(' ')[0])
+    .replace(/\{producto\}/g,c.prod||'su pedido')
+    .replace(/\{precio\}/g,c.precio||'0')
+    .replace(/\{cobrar\}/g,c.cobrar||c.precio||'0')
+    .replace(/\{direccion\}/g,c.dir||'')
+    .replace(/\{distrito\}/g,c.dist||'')
+    .replace(/\{celular\}/g,c.cel||'');
+}
+
+function rbTipDir(c){
+  if(c.tipDir) return c.tipDir;
+  var dir=(c.dir||'').toLowerCase().trim();
+  if(!dir) return 'sin';
+  if(/mz|manzana|mza\.?/.test(dir)) return 'mz';
+  if(/s\.?n\.?$|sin\s*n[uú]mero|sn$/.test(dir)) return 'ref';
+  if(/referencia|ref\.?|\.ref|cdra|cuadra|frente|al\s*lado|cruce|esquina/.test(dir)) return 'ref';
+  return 'ok';
+}
+
+var _rb = { cola:[], indice:0, enviados:0, tipoFlujo:'normal' };
+
+// ── Animación apertura / cierre ──────────────────────────────
+function abrirRiderBot(){
+  var ov  = document.getElementById('riderbot-overlay');
+  var pan = document.getElementById('riderbot-panel');
+  if(!ov||!pan) return;
+  document.body.style.overflow = 'hidden';
+  ov.style.display = 'block';
+  pan.style.display = 'block';
+  setTimeout(function(){
+    ov.style.opacity = '1';
+    pan.style.transform = 'translateX(-50%) translateY(0)';
+  }, 10);
+  _rb.cola=[]; _rb.indice=0; _rb.enviados=0;
+  rbMostrarResumenIA();
+  rbActualizarBadge();
+}
+
+function cerrarRiderBot(){
+  var ov  = document.getElementById('riderbot-overlay');
+  var pan = document.getElementById('riderbot-panel');
+  if(!ov||!pan) return;
+  ov.style.opacity = '0';
+  pan.style.transform = 'translateX(-50%) translateY(100%)';
+  setTimeout(function(){
+    ov.style.display = 'none';
+    pan.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }, 300);
+}
+
+// ── Badge en FAB ─────────────────────────────────────────────
+function rbActualizarBadge(){
+  var badge = document.getElementById('rb-badge');
+  if(!badge) return;
+  var pend = (D.cl||[]).filter(function(c){ return c.st==='pendiente'; }).length;
+  if(pend > 0){
+    badge.textContent = pend > 9 ? '9+' : pend;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ── Config mensajes ──────────────────────────────────────────
+function rbAbrirConfig(){
+  var ep = document.getElementById('riderbot-cfg-panel');
+  var eo = document.getElementById('riderbot-cfg-overlay');
+  if(!ep||!eo) return;
+  document.getElementById('rb-msg-normal').value    = rbGetMsgNormal();
+  document.getElementById('rb-msg-ubicacion').value = rbGetMsgUbicacion();
+  eo.style.display = 'block';
+  ep.style.display = 'block';
+}
+function rbCerrarConfig(){
+  document.getElementById('riderbot-cfg-overlay').style.display='none';
+  document.getElementById('riderbot-cfg-panel').style.display='none';
+}
+function rbGuardarConfig(){
+  var mn = document.getElementById('rb-msg-normal').value.trim();
+  var mu = document.getElementById('rb-msg-ubicacion').value.trim();
+  if(!mn||!mu){ mostrarToast('⚠️ Completa los dos mensajes'); return; }
+  localStorage.setItem('rb_msg_normal', mn);
+  localStorage.setItem('rb_msg_ubicacion', mu);
+  rbCerrarConfig();
+  mostrarToast('✅ Mensajes guardados');
+}
+
+// ── Análisis con IA ──────────────────────────────────────────
+function rbMostrarResumenIA(){
+  var body = document.getElementById('riderbot-body');
+  if(!body) return;
+
+  var cl = D.cl||[];
+  var ST_ENT = ['efectivo','yape-rudy','yape-efectivo','yape-plin','transferencia','pos','pago-link','jose-smith','cambio','empresa','mixto'];
+  var ST_FAL = ['fallida','rechazado','devuelto','ausente','no-contesta','cancelado'];
+
+  var pendientes = cl.filter(function(c){ return c.st==='pendiente'; });
+  var entregados = cl.filter(function(c){ return ST_ENT.includes(c.st); });
+  var fallidos   = cl.filter(function(c){ return ST_FAL.includes(c.st); });
+  var reprog     = cl.filter(function(c){ return c.st==='reprogramar'; });
+
+  var conManzana = pendientes.filter(function(c){ return rbTipDir(c)==='mz'; });
+  var sinNumero  = pendientes.filter(function(c){ return rbTipDir(c)==='ref'||rbTipDir(c)==='sin'; });
+  var dirOk      = pendientes.filter(function(c){ return rbTipDir(c)==='ok'; });
+  var mzConCel   = conManzana.filter(function(c){ return cTel(c.cel); });
+  var snConCel   = sinNumero.filter(function(c){ return cTel(c.cel); });
+  var okConCel   = dirOk.filter(function(c){ return cTel(c.cel); });
+
+  var cobrado = 0;
+  cl.forEach(function(c){ if(ST_ENT.includes(c.st)) cobrado+=parseFloat(c.cobrar||0); });
+
+  // Calcular % avance
+  var pct = cl.length > 0 ? Math.round((entregados.length/cl.length)*100) : 0;
+
+  // Loading animado
+  var loadDiv = document.createElement('div');
+  loadDiv.style.cssText = 'text-align:center;padding:32px 0 24px';
+  loadDiv.innerHTML = '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:14px">'
+    + '<span class="rb-loading-dot"></span>'
+    + '<span class="rb-loading-dot"></span>'
+    + '<span class="rb-loading-dot"></span>'
+    + '</div>'
+    + '<div style="font-size:0.82rem;color:var(--muted,#A5A6C4);font-weight:600">Analizando tu ruta...</div>';
+  body.innerHTML = '';
+  body.appendChild(loadDiv);
+
+  var apiKey = getRiderApiKey();
+  if(!apiKey){
+    rbRenderResumen(cl,entregados.length,pendientes.length,fallidos.length,reprog.length,
+      cobrado,mzConCel,snConCel,okConCel,conManzana,sinNumero,dirOk,pct,
+      '⚠️ Sin API key. Ve a Menú → Configurar API Key IA para activar el análisis.');
+    return;
+  }
+
+  var resumenClientes = pendientes.slice(0,20).map(function(c){
+    return (c.nombre||'Sin nombre')+' | '+(c.dir||'sin dir')+' | '+(c.dist||'')+' | tipo:'+(c.tipDir||rbTipDir(c))+' | cel:'+(c.cel?'sí':'no');
+  }).join('\n');
+
+  var hora = new Date().getHours();
+  var turno = hora < 12 ? 'mañana' : hora < 19 ? 'tarde' : 'noche';
+
+  var prompt = 'Eres RiderBot, asistente IA de Rudy, repartidor en Lima, Perú.\n'
+    + 'Analiza su ruta y da UN consejo práctico y directo (máx 2 oraciones). Sin saludos, sin listas.\n'
+    + 'Turno: '+turno+'. Pedidos: '+cl.length+' total | '+entregados.length+' entregados | '+pendientes.length+' pendientes | '+fallidos.length+' fallidos.\n'
+    + 'Pendientes: '+conManzana.length+' en Manzana, '+sinNumero.length+' sin número, '+dirOk.length+' dir. completa.\n'
+    + 'Clientes pendientes:\n'+resumenClientes+'\n'
+    + 'Consejo útil y directo para Rudy (español, informal):';
+
+  fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-haiku-4-5',max_tokens:200,messages:[{role:'user',content:prompt}]})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var txt=(data.content&&data.content[0]&&data.content[0].text)||'';
+    if(data.error) txt='⚠️ '+( data.error.message||'Error IA');
+    rbRenderResumen(cl,entregados.length,pendientes.length,fallidos.length,reprog.length,
+      cobrado,mzConCel,snConCel,okConCel,conManzana,sinNumero,dirOk,pct,txt);
+  })
+  .catch(function(){
+    rbRenderResumen(cl,entregados.length,pendientes.length,fallidos.length,reprog.length,
+      cobrado,mzConCel,snConCel,okConCel,conManzana,sinNumero,dirOk,pct,
+      '⚠️ Sin conexión con la IA.');
+  });
+}
+
+// ── Render resumen rediseñado ─────────────────────────────────
+function rbRenderResumen(cl,nEnt,nPend,nFal,nRep,cobrado,mzConCel,snConCel,okConCel,conManzana,sinNumero,dirOk,pct,iaTexto){
+  var body = document.getElementById('riderbot-body');
+  if(!body) return;
+
+  var frag = document.createDocumentFragment();
+
+  // ── Barra de progreso del día ──
+  var progWrap = document.createElement('div');
+  progWrap.className = 'rb-card-anim';
+  progWrap.style.cssText = 'background:var(--s2,#2B2D3A);border-radius:16px;padding:14px 16px;margin-bottom:12px;border:1px solid var(--border,rgba(255,255,255,0.06))';
+  progWrap.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    +'<span style="font-size:0.75rem;color:var(--muted,#A5A6C4);font-weight:700">Progreso del día</span>'
+    +'<span style="font-size:0.9rem;font-weight:900;color:'+(pct>=80?'#10B981':pct>=50?'#F59E0B':'#a78bfa')+'">'+pct+'%</span>'
+    +'</div>'
+    +'<div style="height:8px;background:rgba(255,255,255,0.06);border-radius:8px;overflow:hidden">'
+    +'<div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,'+(pct>=80?'#10B981,#059669':pct>=50?'#F59E0B,#D97706':'#7B2CBF,#9333ea')+');border-radius:8px;transition:width 0.8s ease"></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px">'
+    +[['✅',nEnt,'#10B981','Entregado'],['⏳',nPend,'#F59E0B','Pendiente'],['❌',nFal,'#EF4444','Fallido'],['🔄',nRep,'#60A5FA','Reprog']].map(function(s){
+      return '<div style="text-align:center">'
+        +'<div style="font-size:1.1rem;font-weight:900;color:'+s[2]+'">'+s[1]+'</div>'
+        +'<div style="font-size:0.55rem;color:var(--muted,#A5A6C4);font-weight:700;margin-top:1px">'+s[3]+'</div>'
+        +'</div>';
+    }).join('')
+    +'</div>';
+  frag.appendChild(progWrap);
+
+  // ── Total cobrado ──
+  var totCard = document.createElement('div');
+  totCard.className = 'rb-card-anim';
+  totCard.style.cssText = 'background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(16,185,129,0.06));border:1px solid rgba(16,185,129,0.2);border-radius:16px;padding:14px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center';
+  totCard.innerHTML = '<div>'
+    +'<div style="font-size:0.62rem;color:#10B981;font-weight:800;text-transform:uppercase;letter-spacing:0.08em">💰 Total cobrado hoy</div>'
+    +'<div style="font-size:0.7rem;color:var(--muted,#A5A6C4);margin-top:2px">'+nEnt+' pedido(s) completado(s)</div>'
+    +'</div>'
+    +'<div style="font-family:Bebas Neue,sans-serif;font-size:1.8rem;color:#10B981;letter-spacing:0.03em">'+fmt(cobrado)+'</div>';
+  frag.appendChild(totCard);
+
+  // ── Burbuja IA ──
+  var burbuja = document.createElement('div');
+  burbuja.className = 'rb-card-anim';
+  burbuja.style.cssText = 'display:flex;gap:10px;align-items:flex-start;margin-bottom:14px';
+  burbuja.innerHTML = '<div style="width:32px;height:32px;min-width:32px;border-radius:50%;background:linear-gradient(135deg,#9333ea,#7B2CBF);display:flex;align-items:center;justify-content:center;font-size:0.9rem;margin-top:2px">🤖</div>'
+    +'<div style="background:var(--s2,#2B2D3A);border-radius:4px 14px 14px 14px;padding:11px 13px;font-size:0.82rem;color:var(--text,#E2E8F0);line-height:1.6;border:1px solid var(--border,rgba(255,255,255,0.06));flex:1">'+rbEscapar(iaTexto)+'</div>';
+  frag.appendChild(burbuja);
+
+  // ── Sección WA ──
+  var secLabel = document.createElement('div');
+  secLabel.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:10px';
+  secLabel.innerHTML = '<div style="flex:1;height:1px;background:var(--border,rgba(255,255,255,0.06))"></div>'
+    +'<span style="font-size:0.62rem;color:var(--muted,#A5A6C4);font-weight:800;text-transform:uppercase;letter-spacing:0.1em">📲 Envío WhatsApp</span>'
+    +'<div style="flex:1;height:1px;background:var(--border,rgba(255,255,255,0.06))"></div>';
+  frag.appendChild(secLabel);
+
+  // Grupo problemático
+  var totalProblema = mzConCel.length + snConCel.length;
+  if(conManzana.length + sinNumero.length > 0){
+    var gProb = document.createElement('div');
+    gProb.className = 'rb-card-anim';
+    gProb.style.cssText = 'background:rgba(239,68,68,0.06);border:1.5px solid rgba(239,68,68,0.2);border-radius:16px;padding:14px 15px;margin-bottom:10px';
+    var badges = '';
+    if(conManzana.length) badges+='<span style="background:rgba(239,68,68,0.15);color:#EF4444;border-radius:20px;padding:3px 10px;font-size:0.68rem;font-weight:800">🔴 Manzana·'+conManzana.length+'</span> ';
+    if(sinNumero.length)  badges+='<span style="background:rgba(245,158,11,0.15);color:#F59E0B;border-radius:20px;padding:3px 10px;font-size:0.68rem;font-weight:800">🟡 Sin nro·'+sinNumero.length+'</span>';
+    gProb.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+      +'<span style="font-weight:800;font-size:0.85rem;color:var(--text,#E2E8F0)">⚠️ Dirs. incompletas</span>'
+      +'<div>'+badges+'</div></div>'
+      +'<div style="font-size:0.75rem;color:var(--muted,#A5A6C4);margin-bottom:10px;line-height:1.5">'
+      +(totalProblema>0?'<b style="color:#EF4444">'+totalProblema+'</b> cliente(s) con celular — les pido ubicación por WA.':'Sin celular registrado, no se puede enviar WA.')
+      +'</div>';
+    if(totalProblema>0){
+      var btnMZ = document.createElement('button');
+      btnMZ.style.cssText='width:100%;padding:12px;background:linear-gradient(135deg,#EF4444,#b91c1c);border:none;border-radius:12px;color:#fff;font-weight:800;font-size:0.85rem;cursor:pointer;letter-spacing:0.02em';
+      btnMZ.innerHTML='📍 Pedir ubicación ('+totalProblema+')';
+      (function(lista){ btnMZ.onclick=function(){ rbIniciarFlujo(lista,'ubicacion'); }; })(mzConCel.concat(snConCel));
+      gProb.appendChild(btnMZ);
+    }
+    frag.appendChild(gProb);
+  }
+
+  // Grupo OK
+  if(dirOk.length>0){
+    var gOk = document.createElement('div');
+    gOk.className = 'rb-card-anim';
+    gOk.style.cssText='background:rgba(16,185,129,0.06);border:1.5px solid rgba(16,185,129,0.15);border-radius:16px;padding:14px 15px;margin-bottom:10px';
+    gOk.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+      +'<span style="font-weight:800;font-size:0.85rem;color:var(--text,#E2E8F0)">✅ Dirs. completas</span>'
+      +'<span style="background:rgba(16,185,129,0.15);color:#10B981;border-radius:20px;padding:3px 10px;font-size:0.68rem;font-weight:800">'+dirOk.length+' pedido(s)</span></div>'
+      +'<div style="font-size:0.75rem;color:var(--muted,#A5A6C4);margin-bottom:10px;line-height:1.5">'
+      +(okConCel.length>0?'<b style="color:#10B981">'+okConCel.length+'</b> con celular para enviar aviso de entrega.':'Sin celular registrado.')
+      +'</div>';
+    if(okConCel.length>0){
+      var btnOk=document.createElement('button');
+      btnOk.style.cssText='width:100%;padding:12px;background:linear-gradient(135deg,#25D366,#128c7e);border:none;border-radius:12px;color:#fff;font-weight:800;font-size:0.85rem;cursor:pointer;letter-spacing:0.02em';
+      btnOk.innerHTML='💬 Enviar aviso ('+okConCel.length+')';
+      (function(lista){ btnOk.onclick=function(){ rbIniciarFlujo(lista,'normal'); }; })(okConCel);
+      gOk.appendChild(btnOk);
+    }
+    frag.appendChild(gOk);
+  }
+
+  if(nPend===0){
+    var finDiv=document.createElement('div');
+    finDiv.className='rb-card-anim';
+    finDiv.style.cssText='text-align:center;padding:20px 0;font-size:0.85rem;color:var(--muted,#A5A6C4)';
+    finDiv.innerHTML='🎉 <b style="color:#10B981">¡Sin pendientes!</b><br>Todos los pedidos están gestionados.';
+    frag.appendChild(finDiv);
+  }
+
+  body.innerHTML='';
+  body.appendChild(frag);
+}
+
+// ── Flujo envío ──────────────────────────────────────────────
+function rbIniciarFlujo(cola,tipo){
+  _rb.cola=cola; _rb.indice=0; _rb.enviados=0; _rb.tipoFlujo=tipo;
+  rbMostrarPaso();
+}
+
+function rbMostrarPaso(){
+  var body=document.getElementById('riderbot-body');
+  if(!body) return;
+  var total=_rb.cola.length;
+  if(_rb.indice>=total){ rbMostrarFin(); return; }
+
+  var c=_rb.cola[_rb.indice];
+  var tel=cTel(c.cel);
+  var esUbic=_rb.tipoFlujo==='ubicacion';
+  var msgTxt=rbAplicarTags(esUbic?rbGetMsgUbicacion():rbGetMsgNormal(),c);
+  var waLink='https://wa.me/51'+tel+'?text='+encodeURIComponent(msgTxt);
+  var pct=Math.round((_rb.indice/total)*100);
+
+  var frag=document.createDocumentFragment();
+
+  // Progreso mini
+  var prog=document.createElement('div');
+  prog.className='rb-card-anim';
+  prog.style.cssText='margin-bottom:14px';
+  var colorProg=esUbic?'#EF4444,#b91c1c':'#25D366,#128c7e';
+  prog.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+    +'<span style="font-size:0.68rem;color:var(--muted,#A5A6C4);font-weight:700">'+(esUbic?'📍 Pidiendo ubicación':'💬 Avisando entrega')+'</span>'
+    +'<span style="font-size:0.75rem;font-weight:900;color:#a78bfa">'+(_rb.indice+1)+' / '+total+'</span>'
+    +'</div>'
+    +'<div style="height:6px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden">'
+    +'<div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,'+colorProg+');border-radius:6px;transition:width 0.4s ease"></div>'
+    +'</div>';
+  frag.appendChild(prog);
+
+  // Tarjeta cliente
+  var td=rbTipDir(c);
+  var tdBadge=td==='mz'?'<span style="background:rgba(239,68,68,0.15);color:#EF4444;border-radius:20px;padding:2px 9px;font-size:0.6rem;font-weight:800">🔴 MZ</span>'
+    :td==='ref'||td==='sin'?'<span style="background:rgba(245,158,11,0.15);color:#F59E0B;border-radius:20px;padding:2px 9px;font-size:0.6rem;font-weight:800">🟡 S/N</span>'
+    :'<span style="background:rgba(16,185,129,0.15);color:#10B981;border-radius:20px;padding:2px 9px;font-size:0.6rem;font-weight:800">✅ OK</span>';
+
+  var card=document.createElement('div');
+  card.className='rb-card-anim';
+  card.style.cssText='background:var(--s2,#2B2D3A);border-radius:16px;padding:14px;margin-bottom:12px;border:1px solid var(--border,rgba(255,255,255,0.06))';
+
+  var nomRow=document.createElement('div');
+  nomRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px';
+  nomRow.innerHTML='<span style="font-weight:900;font-size:0.95rem;color:var(--text,#E2E8F0)">'+(c.nombre||'Sin nombre')+'</span>'+tdBadge;
+  card.appendChild(nomRow);
+
+  // Datos en grid
+  var grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px';
+  [[c.prod?'📦 '+c.prod:null,'left'],[c.cobrar?'💰 S/ '+c.cobrar:null,'left'],
+   [(c.dir||c.dist)?'📍 '+(c.dir||'')+(c.dist?', '+c.dist:''):null,'left'],['📞 '+tel,'left']]
+    .filter(function(x){return x[0];}).forEach(function(d){
+      var r=document.createElement('div');
+      r.style.cssText='font-size:0.72rem;color:var(--muted,#A5A6C4);line-height:1.4;word-break:break-word';
+      r.textContent=d[0];
+      grid.appendChild(r);
+    });
+  card.appendChild(grid);
+
+  // Preview WA style
+  var prevLbl=document.createElement('div');
+  prevLbl.style.cssText='font-size:0.58rem;color:#9b59b6;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px';
+  prevLbl.textContent='✉️ Mensaje';
+  card.appendChild(prevLbl);
+  var prevMsg=document.createElement('div');
+  prevMsg.style.cssText='background:rgba(37,211,102,0.07);border:1px solid rgba(37,211,102,0.15);border-radius:4px 12px 12px 12px;padding:10px 12px;font-size:0.74rem;color:var(--text,#E2E8F0);line-height:1.55;white-space:pre-wrap;word-break:break-word';
+  prevMsg.textContent=msgTxt;
+  card.appendChild(prevMsg);
+  frag.appendChild(card);
+
+  // Botón WA grande
+  var btnWA=document.createElement('a');
+  btnWA.href=waLink; btnWA.target='_blank'; btnWA.rel='noopener';
+  btnWA.style.cssText='display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:15px;background:linear-gradient(135deg,#25D366,#128c7e);border-radius:14px;color:#fff;font-weight:900;font-size:0.95rem;text-decoration:none;margin-bottom:10px;box-sizing:border-box;box-shadow:0 4px 14px rgba(37,211,102,0.3);letter-spacing:0.02em';
+  btnWA.innerHTML='<span style="font-size:1.1rem">💬</span> WhatsApp · <b>'+(c.nombre||'').split(' ')[0]+'</b>';
+  btnWA.onclick=function(){ setTimeout(rbAvanzar,1200); };
+  frag.appendChild(btnWA);
+
+  // Saltar / Detener
+  var row2=document.createElement('div');
+  row2.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px';
+  var btnS=document.createElement('button');
+  btnS.style.cssText='padding:12px;background:var(--s2,#2B2D3A);border:1.5px solid var(--border,rgba(255,255,255,0.08));border-radius:12px;color:var(--muted,#A5A6C4);font-weight:700;cursor:pointer;font-size:0.82rem';
+  btnS.innerHTML='⏭️ Saltar'; btnS.onclick=rbAvanzar;
+  var btnD=document.createElement('button');
+  btnD.style.cssText='padding:12px;background:none;border:1.5px solid rgba(239,68,68,0.25);border-radius:12px;color:#EF4444;font-weight:700;cursor:pointer;font-size:0.82rem';
+  btnD.innerHTML='🛑 Detener'; btnD.onclick=function(){ rbMostrarFin(true); };
+  row2.appendChild(btnS); row2.appendChild(btnD);
+  frag.appendChild(row2);
+
+  body.innerHTML=''; body.appendChild(frag);
+  var pan=document.getElementById('riderbot-panel'); if(pan) pan.scrollTop=0;
+}
+
+function rbAvanzar(){ _rb.enviados++; _rb.indice++; rbMostrarPaso(); }
+
+function rbMostrarFin(detenido){
+  var body=document.getElementById('riderbot-body');
+  if(!body) return;
+  var frag=document.createDocumentFragment();
+
+  var wrap=document.createElement('div');
+  wrap.className='rb-card-anim';
+  wrap.style.cssText='text-align:center;padding:16px 0 8px';
+  var icon=detenido?'🛑':'🎉';
+  var color=detenido?'#EF4444':'#10B981';
+  wrap.innerHTML='<div style="font-size:3rem;margin-bottom:12px">'+icon+'</div>'
+    +'<div style="font-weight:900;font-size:1.05rem;color:var(--text,#E2E8F0);margin-bottom:6px">'+(detenido?'Envío detenido':'¡Listo, Rudy!')+'</div>'
+    +'<div style="font-size:0.8rem;color:var(--muted,#A5A6C4);margin-bottom:6px;line-height:1.5">'
+    +'<span style="color:'+color+';font-weight:900">'+_rb.enviados+'</span> de '+_rb.cola.length+' WhatsApp(s) enviados</div>'
+    +'<div style="display:inline-block;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:20px;padding:4px 14px;font-size:0.72rem;color:#10B981;font-weight:700;margin-bottom:20px">'+Math.round(_rb.enviados/_rb.cola.length*100)+'% completado</div>';
+  frag.appendChild(wrap);
+
+  var btnV=document.createElement('button');
+  btnV.style.cssText='width:100%;padding:14px;background:linear-gradient(135deg,#7B2CBF,#5a189a);border:none;border-radius:14px;color:#fff;font-weight:800;font-size:0.92rem;cursor:pointer;margin-bottom:8px;box-shadow:0 4px 14px rgba(123,44,191,0.3)';
+  btnV.innerHTML='↩️ Volver al resumen';
+  btnV.onclick=function(){ _rb.cola=[]; _rb.indice=0; rbMostrarResumenIA(); };
+  frag.appendChild(btnV);
+
+  var btnC=document.createElement('button');
+  btnC.style.cssText='width:100%;padding:12px;background:none;border:1.5px solid var(--border,rgba(255,255,255,0.08));border-radius:12px;color:var(--muted,#A5A6C4);font-weight:700;cursor:pointer;font-size:0.85rem';
+  btnC.innerHTML='✕ Cerrar';
+  btnC.onclick=cerrarRiderBot;
+  frag.appendChild(btnC);
+
+  body.innerHTML=''; body.appendChild(frag);
+}
+
+function rbEscapar(s){
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+// FAB hover + badge inicial
+(function(){
+  var fab=document.getElementById('riderbot-fab');
+  if(!fab) return;
+  fab.addEventListener('mouseenter',function(){ fab.style.transform='scale(1.1)'; fab.style.boxShadow='0 6px 28px rgba(123,44,191,0.75)'; });
+  fab.addEventListener('mouseleave',function(){ fab.style.transform='scale(1)'; fab.style.boxShadow='0 4px 20px rgba(123,44,191,0.6)'; });
+  setTimeout(rbActualizarBadge, 500);
+})();
+</script>
+
 </body>
 </html>

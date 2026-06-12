@@ -907,8 +907,10 @@
     <!-- TOPBAR -->
     <header class="topbar">
       <div class="brand-section">
-        <button onclick="window.location.href='index.html'" style="background:none;border:none;cursor:pointer;padding:4px 8px 4px 0;font-size:1.1rem;color:var(--text-primary);display:flex;align-items:center;gap:4px" title="Volver a RiderTrack">
-          ◀️
+        <button onclick="window.location.href='index.html'" style="background:none;border:none;cursor:pointer;padding:4px 8px 4px 0;display:flex;align-items:center;gap:6px;border-radius:8px;transition:background 0.2s" title="Volver a RiderTrack"
+          onmouseenter="this.style.background='rgba(59,130,246,0.1)'" onmouseleave="this.style.background='none'">
+          <span style="font-size:1rem">◀️</span>
+          <span style="font-size:0.7rem;font-weight:700;color:var(--accent);letter-spacing:0.05em">RIDERTRACK</span>
         </button>
         <span class="brand-title">CLIENTETRACK ALPHA</span>
         <span class="brand-subtitle">ENTREGAS • CLIENTES • EFICIENCIA</span>
@@ -1525,16 +1527,9 @@
  * Orquestador principal — ES Modules
  */
 
-
-
-
-
-
-// ╔═══════════════════════════════════════════════════════╗
 // ║  SECCIÓN 1: DATOS INICIALES Y ESTADO                  ║
 // ║  Variables: state.clients, state.config, state.qrs    ║
 // ║  Storage key: clienttrack_state_v2                    ║
-// ╚═══════════════════════════════════════════════════════╝
 // --- DATOS INICIALES ---
 const initialClients = [];
 
@@ -1581,11 +1576,9 @@ let state = {
   customTags: defaultCustomTags
 };
 
-// ╔═══════════════════════════════════════════════════════╗
 // ║  SECCIÓN 2: PERSISTENCIA                              ║
 // ║  Funciones: loadState(), saveState()                  ║
 // ║  Lee clientes SOLO de RiderTrack (urRoute)            ║
-// ╚═══════════════════════════════════════════════════════╝
 // --- PERSISTENCIA ---
 function loadState() {
   const stored = localStorage.getItem('clienttrack_state_v2');
@@ -1615,11 +1608,9 @@ function saveState() {
 
 loadState();
 
-// ╔═══════════════════════════════════════════════════════╗
 // ║  SECCIÓN 3: UTILIDADES                                ║
 // ║  Funciones: showToast(), cleanPhoneNumber(),          ║
 // ║             openWhatsApp(), applyTheme()              ║
-// ╚═══════════════════════════════════════════════════════╝
 // --- UTILIDADES ---
 function showToast(message) {
   const toast = document.getElementById('toast');
@@ -1798,11 +1789,9 @@ function saveConfig() {
 }
 window.saveConfig = saveConfig;
 
-// ╔═══════════════════════════════════════════════════════╗
 // ║  SECCIÓN 4: DASHBOARD                                 ║
 // ║  Funciones: renderDashboard(), renderResumen()        ║
 // ║  Muestra estadísticas y resumen del día               ║
-// ╚═══════════════════════════════════════════════════════╝
 // --- DASHBOARD ---
 function renderResumen() {
   var clients = state.clients || [];
@@ -1856,12 +1845,10 @@ function renderDashboard() {
   set('dash-monto-pendiente', `S/ ${pendiente.toFixed(2)}`);
 }
 
-// ╔═══════════════════════════════════════════════════════╗
 // ║  SECCIÓN 5: CLIENTES                                  ║
 // ║  Funciones: renderClients(), changeStatus(),          ║
 // ║             deleteClient(), updateNote()              ║
 // ║  Panels: msg-panel, qr-panel, hora-panel              ║
-// ╚═══════════════════════════════════════════════════════╝
 // --- CLIENTES ---
 let activeFilter = 'Todos';
 let searchQuery = '';
@@ -2337,7 +2324,6 @@ window.compartirQRCliente = function(id) {
     var blob = new Blob([u8], {type: mime});
     var file = new File([blob], 'QR_'+tipo+'.png', {type: mime});
 
-
     // ── Capacitor nativo — mismo patrón que RiderTrack ──
     if(typeof window.Capacitor !== 'undefined' &&
        window.Capacitor.isNativePlatform &&
@@ -2414,21 +2400,17 @@ window.waEmpresaCliente = id => {
   }
 };
 
-// ╔═══════════════════════════════════════════════════════╗
 // ║  SECCIÓN 6: SYNC CON RIDERTRACK                       ║
 // ║  Lee localStorage 'urRoute' de RiderTrack             ║
 // ║  Mapea estados RT → CT                                ║
 // ║  Auto-sync al cargar + storage event                  ║
-// ╚═══════════════════════════════════════════════════════╝
 // --- SYNC RIDERTRACK ---
 // ESTADO: Solo existe estructura de conexión vía localStorage compartido.
 // NO hay API, NO hay webhook, NO hay servidor.
 // Funciona únicamente si ambas apps están en el mismo dominio (alenrudy.github.io).
 // Para una conexión real se necesitaría una API REST o Firebase.
-// ╔═══════════════════════════════════════════════════════╗
 // ║  CLASIFICACIÓN DE DIRECCIONES                         ║
 // ║  mz=Manzana · ref=Sin número · ok=Normal              ║
-// ╚═══════════════════════════════════════════════════════╝
 function clasificarDirCT(dir){
   if(!dir) return 'sin';
   var d = dir.toLowerCase().trim();
@@ -2536,36 +2518,13 @@ window.syncRiderTrack = function(silent) {
   }
 };
 
-// ╔═══════════════════════════════════════════════════════╗
 // ║  SECCIÓN 7: MASIVO                                    ║
 // ║  Funciones: renderMasivoView(), startMassSendingQueue ║
 // ║  Tags disponibles: {nombre} {producto} {cobrar} etc   ║
-// ╚═══════════════════════════════════════════════════════╝
 // --- MASIVO ---
-function renderMassClientsList() {
-  const container = document.getElementById('masivo-clients-container');
-  if (!container) return;
-  container.innerHTML = '';
-  state.clients.forEach(client => {
-    const sc = (client.status||'').toLowerCase().replace(/\s+/g,'-');
-    const item = document.createElement('div');
-    item.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--input-bg);border-radius:8px;margin-bottom:6px;';
-    item.innerHTML = `
-      <input type="checkbox" class="masivo-check" data-id="${client.id}" style="width:16px;height:16px;cursor:pointer;">
-      <div style="flex:1;">
-        <div style="font-weight:600;font-size:0.85rem;">${client.name}</div>
-        <div style="font-size:0.72rem;color:var(--text-secondary);">${client.product} • S/ ${parseFloat(client.cobrar||0).toFixed(2)}</div>
-      </div>
-      <span class="status-badge status-${sc}" style="font-size:0.65rem;">${client.status}</span>
-    `;
-    container.appendChild(item);
-  });
-}
 
-// ╔═══════════════════════════════════════════════════════╗
 // ║  SECCIÓN 8: INICIALIZACIÓN                            ║
 // ║  DOMContentLoaded: carga state, módulos, sync RT      ║
-// ╚═══════════════════════════════════════════════════════╝
 // --- INICIALIZACIÓN ---
 
 // --- MASIVO: FUNCIONES COMPLETAS ---
@@ -2789,8 +2748,6 @@ function initMasivoSearch() {
  * Módulo de Gestión de Códigos QR Globales y QR Inteligente por Cliente (Fase 4)
  */
 
-
-
 let activeClientQRId = null;
 let currentClientQRType = 'yape'; // 'yape', 'plin', 'empresa'
 
@@ -2921,7 +2878,6 @@ function closeZoomModal() {
   if (modal) modal.classList.remove('active');
 }
 window.closeZoomModal = closeZoomModal;
-
 
 // ==========================================
 // ====== QR INTELIGENTE POR CLIENTE ========
@@ -3169,14 +3125,11 @@ function inicializarQR() {
 
 // Inicialización auto-ejecutada del módulo QR
 
-
 // ===== MENSAJES MODULE =====
 /**
  * ClienteTrack Alpha - mensajes.js
  * Módulo para la Biblioteca de Mensajes, Categorías, Tags, y Mensajería Inteligente (Fase 4)
  */
-
-
 
 let activeMessagesSubView = 'sub-biblioteca';
 let selectedMsgCategoryFilter = 'Todos';
@@ -3897,8 +3850,6 @@ document.addEventListener('DOMContentLoaded', () => {
  * Módulo de Planificación, Secuenciación y Optimización de Rutas de Entrega
  */
 
-
-
 // --- INICIALIZADOR DEL MÓDULO ---
 function inicializarRutas() {
   injectRutasUI();
@@ -4168,8 +4119,6 @@ function salvarSecuenciaEstablecida() {
  * Módulo Fase 4 — Panel Empresa WA + Estados Rápidos + Reporte
  */
 
-
-
 function inicializarClientePlus() {
   injectStatusStyles();
   injectReporteBtn();
@@ -4178,9 +4127,7 @@ function inicializarClientePlus() {
   console.log('ClientePlus v4.1 ✅');
 }
 
-// ─────────────────────────────────────────────
 // ESTILOS: nuevos estados + panel empresa
-// ─────────────────────────────────────────────
 function injectStatusStyles() {
   if (document.getElementById('cp-status-styles')) return;
   const s = document.createElement('style');
@@ -4290,9 +4237,7 @@ function injectStatusStyles() {
   document.head.appendChild(s);
 }
 
-// ─────────────────────────────────────────────
 // BOTÓN REPORTE en Dashboard
-// ─────────────────────────────────────────────
 function injectReporteBtn() {
   const dash = document.getElementById('view-dashboard');
   if (!dash || document.getElementById('cp-reporte-btn')) return;
@@ -4312,10 +4257,8 @@ function injectReporteBtn() {
   else dash.prepend(wrap);
 }
 
-// ─────────────────────────────────────────────
 // PANEL EMPRESA WA — modal desplegable
 // Nota: se inyecta UNA VEZ en el body y se reutiliza.
-// ─────────────────────────────────────────────
 function injectPanelEmpresaModal() {
   if (document.getElementById('cp-empresa-modal')) return;
   const modal = document.createElement('div');
@@ -4418,9 +4361,7 @@ function injectPanelEmpresaModal() {
   document.body.appendChild(modal);
 }
 
-// ─────────────────────────────────────────────
 // GENERADOR DE MENSAJES CON TAGS DINÁMICOS
-// ─────────────────────────────────────────────
 function buildMsgEmpresa(client, status) {
   const now   = new Date();
   const nombre    = (client.name    || '').split(' ')[0];
@@ -4462,9 +4403,7 @@ function buildMsgEmpresa(client, status) {
   return templates[status] || `Reporte: ${nombre} — ${status}\nProducto: ${producto}\nMonto: S/ ${cobrar}\nFecha: ${fecha} • ${hora}`;
 }
 
-// ─────────────────────────────────────────────
 // EVENTOS
-// ─────────────────────────────────────────────
 let cpEmpClienteActivo = null;
 
 function bindEvents() {
@@ -4641,9 +4580,7 @@ function bindEvents() {
   });
 }
 
-// ─────────────────────────────────────────────
 // REPORTE CORPORATIVO
-// ─────────────────────────────────────────────
 function generarReporte() {
   const clients = state.clients || [];
   const cobrado  = clients.filter(c => c.status==='Entregado').reduce((a,c) => a+parseFloat(c.cobrar||0),0);
@@ -4685,7 +4622,6 @@ function generarReporte() {
 }
 
 // export { generarReporte };
-
 
 // ===== INICIALIZACIÓN =====
 // ── LLAMADA DIRECTA ──────────────────────────────────────────
