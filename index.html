@@ -1243,13 +1243,8 @@ function loginConGoogle(){
   provider.addScope('profile');
   provider.addScope('email');
 
-  // En Capacitor usar signInWithRedirect, en web usar signInWithPopup
-  var esCapacitor = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
-  var metodo = esCapacitor
-    ? fbAuth.signInWithRedirect(provider)
-    : fbAuth.signInWithPopup(provider);
-
-  metodo.catch(function(e){
+  // Siempre usar signInWithPopup — funciona en Capacitor WebView y navegador
+  fbAuth.signInWithPopup(provider).catch(function(e){
     if(loading) loading.style.display = 'none';
     if(btnG)    btnG.disabled = false;
     var msg = 'Error al iniciar sesión';
