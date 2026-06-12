@@ -4316,7 +4316,9 @@ function loginConGoogle(){
     return;
   }
 
-  Capacitor.Plugins.GoogleAuth.signIn()
+  // Hacer signOut primero para siempre mostrar selector de cuentas
+  var doSignIn = function(){
+    Capacitor.Plugins.GoogleAuth.signIn()
     .then(function(googleUser){
       // Obtener credencial de Firebase con el token de Google
       var credential = firebase.auth.GoogleAuthProvider.credential(
@@ -4335,6 +4337,12 @@ function loginConGoogle(){
       if(e.message && e.message.includes('network')) msg = 'Sin conexión a internet';
       showErr(msg);
     });
+  };
+
+  // Cerrar sesión Google primero → siempre muestra selector de cuentas
+  Capacitor.Plugins.GoogleAuth.signOut()
+    .then(doSignIn)
+    .catch(doSignIn); // Si falla el signOut igual intentamos signIn
 }
 
 // ── Tab login/registro ────────────────────────────────────────
