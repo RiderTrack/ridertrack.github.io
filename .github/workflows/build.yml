@@ -62,7 +62,7 @@ jobs:
       - name: Configure GoogleAuth plugin
         run: |
           mkdir -p android/app/src/main/res/values
-          echo '<?xml version="1.0" encoding="utf-8"?><resources><string name="app_name">RiderTrack</string><string name="server_client_id">851606828420-rm5mumtplpctk6p4cjh44mnttlnlmbfs.apps.googleusercontent.com</string></resources>' > android/app/src/main/res/values/strings.xml
+          echo '<?xml version="1.0" encoding="utf-8"?><resources><string name="app_name">RiderTrack</string><string name="title_activity_main">RiderTrack</string><string name="package_name">com.ridertrack.app</string><string name="custom_url_scheme">com.ridertrack.app</string><string name="server_client_id">851606828420-rm5mumtplpctk6p4cjh44mnttlnlmbfs.apps.googleusercontent.com</string></resources>' > android/app/src/main/res/values/strings.xml
           echo "✅ strings.xml creado"
 
       - name: Add Google Auth dependency to app build.gradle
