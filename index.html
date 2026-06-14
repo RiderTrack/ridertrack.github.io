@@ -3583,29 +3583,91 @@ function editarFechaHist(id){
   var h = D.hist.find(function(x){ return x.id===id; });
   if(!h) return;
   var fechaActual = h.fechaId || '';
-  var nueva = prompt('📅 Cambiar fecha de esta ruta\nFormato: AAAA-MM-DD\nFecha actual: '+fechaActual, fechaActual);
-  if(!nueva || nueva===fechaActual) return;
-  // Validar formato
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(nueva.trim())){
-    alert('Formato incorrecto. Usa AAAA-MM-DD\nEjemplo: 2026-06-10');
-    return;
+
+  // Modal propio — prompt() no funciona en Capacitor WebView Android
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)';
+  document.body.style.overflow = 'hidden';
+
+  var panel = document.createElement('div');
+  panel.style.cssText = 'background:var(--s1,#1A1B26);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 18px 40px;border-top:3px solid var(--ac,#7B2CBF)';
+
+  // Título
+  var tit = document.createElement('div');
+  tit.style.cssText = 'font-size:1rem;font-weight:800;color:var(--text,#E2E8F0);margin-bottom:4px';
+  tit.textContent = '📅 Cambiar fecha de esta ruta';
+  panel.appendChild(tit);
+
+  // Subtítulo
+  var sub = document.createElement('div');
+  sub.style.cssText = 'font-size:0.72rem;color:var(--muted,#A5A6C4);margin-bottom:16px';
+  sub.textContent = 'Fecha actual: ' + fechaActual;
+  panel.appendChild(sub);
+
+  // Label
+  var lbl = document.createElement('div');
+  lbl.style.cssText = 'font-size:0.7rem;font-weight:700;color:var(--muted,#A5A6C4);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px';
+  lbl.textContent = 'Nueva fecha';
+  panel.appendChild(lbl);
+
+  // Input tipo date — nativo en Android, muestra selector de calendario
+  var inp = document.createElement('input');
+  inp.type = 'date';
+  inp.value = fechaActual;
+  inp.style.cssText = 'width:100%;padding:12px 14px;background:var(--s2,#2B2D3A);border:1.5px solid var(--ac,#7B2CBF);border-radius:12px;color:var(--text,#E2E8F0);font-size:1rem;font-family:inherit;outline:none;margin-bottom:16px;box-sizing:border-box';
+  panel.appendChild(inp);
+
+  // Botones
+  var btns = document.createElement('div');
+  btns.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px';
+
+  var btnCancelar = document.createElement('button');
+  btnCancelar.textContent = 'Cancelar';
+  btnCancelar.style.cssText = 'padding:13px;background:var(--s2,#2B2D3A);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:12px;color:var(--muted,#A5A6C4);font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit';
+
+  var btnGuardar = document.createElement('button');
+  btnGuardar.textContent = '✅ Guardar';
+  btnGuardar.style.cssText = 'padding:13px;background:linear-gradient(135deg,var(--ac,#7B2CBF),var(--ac2,#5a189a));border:none;border-radius:12px;color:#fff;font-weight:800;font-size:0.9rem;cursor:pointer;font-family:inherit';
+
+  function cerrar(){
+    ov.remove();
+    document.body.style.overflow = 'auto';
   }
-  // Parsear manualmente para evitar desplazamiento por zona horaria (UTC vs local)
-  var partes = nueva.trim().split('-');
-  if(partes.length!==3){ alert('Fecha inválida'); return; }
-  var anio=parseInt(partes[0],10), mes=parseInt(partes[1],10)-1, dia=parseInt(partes[2],10);
-  var d = new Date(anio, mes, dia, 12, 0, 0); // mediodía → sin riesgo de cambio de día por TZ
-  if(isNaN(d.getTime())){ alert('Fecha inválida'); return; }
-  h.fechaId = nueva.trim();
-  // Actualizar también los campos de texto legibles
-  h.fecha = d.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'});
-  h.fechaL = d.toLocaleDateString('es-PE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
-  sv();
-  // Re-renderizar
-  if(calVisible) renderCal();
-  var det = el('cal-detalle');
-  if(det) det.style.display='none';
-  mostrarToast('✅ Fecha actualizada a '+h.fecha);
+
+  function guardar(){
+    var nueva = inp.value.trim();
+    if(!nueva || nueva === fechaActual){ cerrar(); return; }
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(nueva)){
+      mostrarToast('⚠️ Formato incorrecto. Usa AAAA-MM-DD');
+      return;
+    }
+    var partes = nueva.split('-');
+    var anio=parseInt(partes[0],10), mes=parseInt(partes[1],10)-1, dia=parseInt(partes[2],10);
+    var d = new Date(anio, mes, dia, 12, 0, 0);
+    if(isNaN(d.getTime())){ mostrarToast('⚠️ Fecha inválida'); return; }
+    h.fechaId = nueva;
+    h.fecha  = d.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'});
+    h.fechaL = d.toLocaleDateString('es-PE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+    sv();
+    if(calVisible) renderCal();
+    var det = el('cal-detalle');
+    if(det) det.style.display = 'none';
+    mostrarToast('✅ Fecha actualizada a ' + h.fecha);
+    cerrar();
+  }
+
+  btnCancelar.onclick = cerrar;
+  btnGuardar.onclick  = guardar;
+  ov.onclick = function(e){ if(e.target === ov) cerrar(); };
+
+  btns.appendChild(btnCancelar);
+  btns.appendChild(btnGuardar);
+  panel.appendChild(btns);
+  ov.appendChild(panel);
+  document.body.appendChild(ov);
+
+  // Foco al input para que abra el teclado/selector
+  setTimeout(function(){ inp.focus(); }, 100);
 }
 
 function render(){rLista();rRes();rHist();rMsgs();rNav();rBib();rReprog();rpUpdBadge();}
