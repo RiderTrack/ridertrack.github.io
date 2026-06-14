@@ -1762,13 +1762,24 @@ function setPago(id,p){
     rpGuardar(c);
   }
   // ── VOZ AL MARCAR ENTREGADO ──────────────────────────────────
-  var estadosEntregado=['efectivo','yape-rudy','cambio','mixto','yape-efectivo','pos','transferencia','yape-plin','pago-link','jose-smith','empresa'];
-  if(estadosEntregado.includes(p) && 'speechSynthesis' in window){
-    var pen=D.cl.filter(function(x){return x.st==='pendiente';}).length;
-    var msg=new SpeechSynthesisUtterance('Pedido entregado, quedan '+pen+' pendientes');
-    msg.lang='es-PE';msg.rate=1.05;msg.pitch=1;msg.volume=1;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(msg);
+  var _estadosEntrega=['efectivo','yape-rudy','cambio','mixto','yape-efectivo','pos','transferencia','yape-plin','pago-link','jose-smith','empresa'];
+  if(_estadosEntrega.includes(p)){
+    var _pen=D.cl.filter(function(x){return x.st==='pendiente'||!x.st;}).length;
+    var _msg='Pedido entregado, quedan '+_pen+' pendientes';
+    // Plugin nativo (APK Capacitor)
+    var _TTS=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.TextToSpeech;
+    if(_TTS){
+      _TTS.speak({text:_msg,lang:'es-PE',rate:1.0,pitch:1.0,volume:1.0}).catch(function(){});
+    } else if(window.speechSynthesis){
+      // Fallback web (Chrome)
+      var _u=new SpeechSynthesisUtterance(_msg);
+      _u.lang='es-PE';_u.rate=0.95;_u.pitch=1;_u.volume=1;
+      var _v=window.speechSynthesis.getVoices();
+      var _ve=_v.find(function(x){return x.lang.startsWith('es');});
+      if(_ve)_u.voice=_ve;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(_u);
+    }
   }
   sv();
   // Diferir render para evitar congelamiento al destruir DOM mientras se procesa el click
@@ -1937,7 +1948,6 @@ function cerrar(){
   // Resetear odómetro para el próximo día
   if(_odo){ _odo.kmTotal=0; _odo.lastLat=null; _odo.lastLng=null; }
   localStorage.setItem('odo_km_hoy','0');
-  // Resetear cronómetro al cerrar ruta
   resetCronometro();
   D.cl=[];sv();render();goTo('hist',document.querySelectorAll('.nb')[4]);
 }
@@ -2335,54 +2345,33 @@ function actualizarUIKm(speed){
 setTimeout(initOdometro, 1000);
 
 // ── CRONÓMETRO DE RUTA ────────────────────────────────────────
-var _crono = {
-  activo: false,
-  inicio: null,
-  acumulado: 0,
-  intervalo: null
-};
+var _crono={activo:false,inicio:null,acumulado:0,intervalo:null};
 function _cronoTick(){
-  var total = _crono.acumulado + (Date.now() - _crono.inicio);
-  var h = Math.floor(total / 3600000);
-  var m = Math.floor((total % 3600000) / 60000);
-  var s = Math.floor((total % 60000) / 1000);
-  var txt = h > 0
-    ? h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0')
-    : String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-  var disp = el('crono-display');
-  if(disp) disp.textContent = txt;
+  var total=_crono.acumulado+(Date.now()-_crono.inicio);
+  var h=Math.floor(total/3600000),m=Math.floor((total%3600000)/60000),s=Math.floor((total%60000)/1000);
+  var txt=h>0?h+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'):String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  var d=el('crono-display');if(d)d.textContent=txt;
 }
 function togCronometro(){
-  var disp  = el('crono-display');
-  var label = el('crono-label');
-  var wrap  = disp && disp.parentElement;
+  var disp=el('crono-display'),label=el('crono-label'),wrap=disp&&disp.parentElement;
   if(!_crono.activo){
-    _crono.inicio  = Date.now();
-    _crono.activo  = true;
-    _crono.intervalo = setInterval(_cronoTick, 1000);
-    if(label) label.textContent = '⏱ PAUSA';
+    _crono.inicio=Date.now();_crono.activo=true;_crono.intervalo=setInterval(_cronoTick,1000);
+    if(label)label.textContent='⏱ PAUSA';
     if(wrap){wrap.style.background='rgba(16,185,129,0.22)';wrap.style.borderColor='rgba(16,185,129,0.6)';}
     mostrarToast('⏱️ Cronómetro iniciado');
   } else {
-    _crono.acumulado += Date.now() - _crono.inicio;
-    _crono.activo = false;
-    clearInterval(_crono.intervalo);
-    if(label) label.textContent = '▶ CONT.';
+    _crono.acumulado+=Date.now()-_crono.inicio;_crono.activo=false;clearInterval(_crono.intervalo);
+    if(label)label.textContent='▶ CONT.';
+    if(disp)disp.style.color='var(--accent-warn)';
     if(wrap){wrap.style.background='rgba(245,158,11,0.12)';wrap.style.borderColor='rgba(245,158,11,0.4)';}
-    if(disp) disp.style.color = 'var(--accent-warn)';
     mostrarToast('⏸️ Pausado — toca para continuar');
   }
 }
 function resetCronometro(){
-  _crono.activo = false;
-  _crono.acumulado = 0;
-  _crono.inicio = null;
-  clearInterval(_crono.intervalo);
-  var disp  = el('crono-display');
-  var label = el('crono-label');
-  var wrap  = disp && disp.parentElement;
-  if(disp){ disp.textContent = '00:00'; disp.style.color = 'var(--accent-green)'; }
-  if(label) label.textContent = 'RUTA';
+  _crono.activo=false;_crono.acumulado=0;_crono.inicio=null;clearInterval(_crono.intervalo);
+  var disp=el('crono-display'),label=el('crono-label'),wrap=disp&&disp.parentElement;
+  if(disp){disp.textContent='00:00';disp.style.color='var(--accent-green)';}
+  if(label)label.textContent='RUTA';
   if(wrap){wrap.style.background='rgba(16,185,129,0.12)';wrap.style.borderColor='rgba(16,185,129,0.3)';}
 }
 
