@@ -910,6 +910,11 @@ document.addEventListener("DOMContentLoaded",function(){
         <option value="">📍 Todos los distritos</option>
       </select>
     </div>
+    <div id="prod-selector-wrap" style="display:none;padding:2px 0 2px;">
+      <select id="prod-sel" onchange="setProdFil(this.value)" style="width:100%;padding:7px 10px;border-radius:10px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-size:0.82rem;font-family:inherit;outline:none;cursor:pointer;">
+        <option value="">📦 Todos los productos</option>
+      </select>
+    </div>
     <div class="g2" style="margin-bottom:10px">
       <button class="btn bgr" onclick="mM()" style="padding:9px;font-size:0.75rem">&#43; Agregar</button>
       <button class="btn bgr" onclick="document.getElementById('fi2').click()" style="padding:9px;font-size:0.75rem">&#128194; Importar mas</button>
@@ -1394,7 +1399,7 @@ var PT=['efectivo','yape-rudy','cambio','yape-efectivo'];
 var PE=['pos','pago-link','transferencia','yape-plin','jose-smith','empresa'];
 var PF=['fallida','reprogramar','rechazado','devuelto','ausente','no-contesta','cancelado'];
 var PL={efectivo:'💵 Efectivo','yape-rudy':'📲 Yape Rudy','yape-efectivo':'💜 Yape+Efectivo','yape-plin':'📲 Yape/Plin',transferencia:'🏦 Transferencia',pos:'💳 POS','pago-link':'🔗 Pago Link','jose-smith':'🤝 Jose Smith',cambio:'💱 Cambio',mixto:'🔀 Mixto',cancelado:'✖ Cancelado',empresa:'🏪 Empresa',rechazado:'🚫 Rechazado',ausente:'🚶 Ausente',fallida:'❌ Fallida','no-contesta':'📵 N.Contesta',reprogramar:'🔄 Reprogramar',devuelto:'↩️ Devuelto'};
-var FIL='t',SRC='',DIST_FIL='';
+var FIL='t',SRC='',DIST_FIL='',PROD_FIL='';
 
 // ║  SECCIÓN 2: UTILIDADES CORE                                  ║
 // ║  Funciones: sv() guarda D en urRoute, el() = getElementById  ║
@@ -1707,9 +1712,35 @@ function renderDistSelector(){
     sel.appendChild(opt);
   });
 }
+function getProductos(){
+  var prods=[];
+  D.cl.forEach(function(c){
+    var p=(c.prod||'').trim();
+    if(p&&!prods.includes(p.toLowerCase())) prods.push(p.toLowerCase());
+  });
+  return prods.sort();
+}
+function setProdFil(val){PROD_FIL=val;rLista();}
+function renderProdSelector(){
+  var wrap=el('prod-selector-wrap');
+  if(!wrap) return;
+  var prods=getProductos();
+  if(prods.length<=1){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  var sel=el('prod-sel');
+  if(!sel) return;
+  sel.innerHTML='<option value="">📦 Todos los productos</option>';
+  prods.forEach(function(p){
+    var opt=document.createElement('option');
+    opt.value=p;
+    opt.textContent='📦 '+p.charAt(0).toUpperCase()+p.slice(1);
+    if(p===PROD_FIL) opt.selected=true;
+    sel.appendChild(opt);
+  });
+}
 function doSearch(){SRC=el('srch').value.toLowerCase();rLista();}
 function stc(s){if(!s||s==='pendiente')return 'p';if(PE.includes(s))return 'e';if(['reprogramar','no-contesta','ausente'].includes(s))return 'w';if(['fallida','rechazado','devuelto','cancelado'].includes(s))return 'f';return 'o';}
-function getFil(){return D.cl.filter(function(c){var sc=stc(c.st);var mf=FIL==='t'||(FIL==='p'&&c.st==='pendiente')||(FIL==='o'&&sc==='o')||(FIL==='e'&&sc==='e')||(FIL==='w'&&sc==='w')||(FIL==='f'&&sc==='f')||(FIL==='dmz'&&c.tipDir==='mz')||(FIL==='dref'&&c.tipDir==='ref');var ms=!SRC||c.nombre.toLowerCase().includes(SRC)||(c.prod||'').toLowerCase().includes(SRC)||(c.dist||'').toLowerCase().includes(SRC);var md=!DIST_FIL||(c.dist||'').toLowerCase()===DIST_FIL;return mf&&ms&&md;});}
+function getFil(){return D.cl.filter(function(c){var sc=stc(c.st);var mf=FIL==='t'||(FIL==='p'&&c.st==='pendiente')||(FIL==='o'&&sc==='o')||(FIL==='e'&&sc==='e')||(FIL==='w'&&sc==='w')||(FIL==='f'&&sc==='f')||(FIL==='dmz'&&c.tipDir==='mz')||(FIL==='dref'&&c.tipDir==='ref');var ms=!SRC||c.nombre.toLowerCase().includes(SRC)||(c.prod||'').toLowerCase().includes(SRC)||(c.dist||'').toLowerCase().includes(SRC);var md=!DIST_FIL||(c.dist||'').toLowerCase()===DIST_FIL;var mp=!PROD_FIL||(c.prod||'').toLowerCase()===PROD_FIL;return mf&&ms&&md&&mp;});}
 // ║  SECCIÓN 6: ESTADOS Y PAGOS                                  ║
 // ║  Funciones: setPago, setMx, setYE, setME, togDet, delC       ║
 // ║             eCob, eNota, eCampo, togEd, togObs, moverA       ║
@@ -1768,6 +1799,7 @@ function getWALink(c){var tel=cTel(c.cel);if(!tel)return '#';return 'https://wa.
 function rLista(){
   var lst=el('lcli'),zi=el('zimp'),lh=el('lhdr'),bc=el('bcer');
   renderDistSelector();
+  renderProdSelector();
   if(!D.cl.length){zi.style.display='block';lh.style.display='none';bc.style.display='none';lst.innerHTML='';updBadge();return;}
   zi.style.display='none';lh.style.display='block';bc.style.display='block';updBadge();
   var cl=getFil();
@@ -3558,7 +3590,11 @@ function editarFechaHist(id){
     alert('Formato incorrecto. Usa AAAA-MM-DD\nEjemplo: 2026-06-10');
     return;
   }
-  var d = new Date(nueva.trim()+'T00:00:00');
+  // Parsear manualmente para evitar desplazamiento por zona horaria (UTC vs local)
+  var partes = nueva.trim().split('-');
+  if(partes.length!==3){ alert('Fecha inválida'); return; }
+  var anio=parseInt(partes[0],10), mes=parseInt(partes[1],10)-1, dia=parseInt(partes[2],10);
+  var d = new Date(anio, mes, dia, 12, 0, 0); // mediodía → sin riesgo de cambio de día por TZ
   if(isNaN(d.getTime())){ alert('Fecha inválida'); return; }
   h.fechaId = nueva.trim();
   // Actualizar también los campos de texto legibles
@@ -3601,6 +3637,7 @@ function hablarResumen(){
   if(dist){msg+='Primer distrito: '+dist+'.';}
   var u=new SpeechSynthesisUtterance(msg);
   u.lang='es-PE';u.rate=0.95;u.pitch=1;u.volume=1;
+  // En Capacitor WebView las voces pueden no cargar — hablar sin voz específica si no hay voces
   var v=window.speechSynthesis.getVoices();
   var ve=v.find(function(x){return x.lang.startsWith('es');});
   if(ve)u.voice=ve;
@@ -3645,27 +3682,40 @@ setTimeout(function(){
       msg += 'Primer distrito: ' + primerDist + '.';
     }
 
-    // Hablar
-    var utter = new SpeechSynthesisUtterance(msg);
-    utter.lang = 'es-PE';   // Español Perú
-    utter.rate = 0.95;      // Velocidad natural
-    utter.pitch = 1;
-    utter.volume = 1;
-
-    // Esperar que el navegador cargue las voces
-    function hablar(){
+    // Hablar — compatible con Capacitor WebView
+    // En WebView nativo onvoiceschanged no siempre dispara,
+    // así que hablamos directamente y si hay voces las usamos
+    function _hablar(){
+      var utter = new SpeechSynthesisUtterance(msg);
+      utter.lang = 'es-PE';
+      utter.rate = 0.95;
+      utter.pitch = 1;
+      utter.volume = 1;
+      // Intentar asignar voz en español si está disponible
       var voces = window.speechSynthesis.getVoices();
-      // Buscar voz en español
       var vozEs = voces.find(function(v){ return v.lang.startsWith('es'); });
       if(vozEs) utter.voice = vozEs;
-      window.speechSynthesis.cancel(); // limpiar cola
+      window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utter);
     }
 
-    if(window.speechSynthesis.getVoices().length > 0){
-      hablar();
+    var voces = window.speechSynthesis.getVoices();
+    if(voces.length > 0){
+      // Voces ya disponibles (Chrome web)
+      _hablar();
     } else {
-      window.speechSynthesis.onvoiceschanged = hablar;
+      // Intentar con onvoiceschanged (puede no funcionar en WebView)
+      window.speechSynthesis.onvoiceschanged = function(){
+        window.speechSynthesis.onvoiceschanged = null;
+        _hablar();
+      };
+      // Fallback: si en 800ms no disparó onvoiceschanged, hablar sin voz específica
+      // (Android WebView usa la voz TTS del sistema aunque getVoices() devuelva [])
+      setTimeout(function(){
+        if(window.speechSynthesis && !window.speechSynthesis.speaking){
+          _hablar();
+        }
+      }, 800);
     }
 
   } catch(e){ /* Si falla la voz, no interrumpe la app */ }
