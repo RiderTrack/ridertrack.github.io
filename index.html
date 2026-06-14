@@ -856,6 +856,11 @@ document.addEventListener("DOMContentLoaded",function(){
         <span style="font-size:0.42rem;color:var(--muted);font-weight:600">km</span>
       </div>
     </div>
+    <!-- Cronómetro de ruta -->
+    <div onclick="togCronometro()" title="Iniciar/Pausar cronómetro" style="display:flex;flex-direction:column;align-items:center;gap:1px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:3px 6px;min-width:42px;cursor:pointer;transition:all 0.2s">
+      <span id="crono-display" style="font-size:0.78rem;font-weight:900;color:var(--accent-green);line-height:1;letter-spacing:0.03em">00:00</span>
+      <span id="crono-label" style="font-size:0.42rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.04em">RUTA</span>
+    </div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
       <div class="badge" id="badge2" style="white-space:nowrap;">0/0</div>
       <div class="badge" id="badge-fal2" style="white-space:nowrap;background:linear-gradient(135deg,#ef4444,#dc2626);">0/0</div>
@@ -1756,6 +1761,15 @@ function setPago(id,p){
   if(['fallida','reprogramar','rechazado','devuelto','ausente','no-contesta','cancelado'].includes(p)){
     rpGuardar(c);
   }
+  // ── VOZ AL MARCAR ENTREGADO ──────────────────────────────────
+  var estadosEntregado=['efectivo','yape-rudy','cambio','mixto','yape-efectivo','pos','transferencia','yape-plin','pago-link','jose-smith','empresa'];
+  if(estadosEntregado.includes(p) && 'speechSynthesis' in window){
+    var pen=D.cl.filter(function(x){return x.st==='pendiente';}).length;
+    var msg=new SpeechSynthesisUtterance('Pedido entregado, quedan '+pen+' pendientes');
+    msg.lang='es-PE';msg.rate=1.05;msg.pitch=1;msg.volume=1;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(msg);
+  }
   sv();
   // Diferir render para evitar congelamiento al destruir DOM mientras se procesa el click
   setTimeout(function(){ rLista(); rRes(); rpUpdBadge(); }, 50);
@@ -1826,7 +1840,7 @@ function rLista(){
     html+='<div class="cc s'+sc+'"><div class="cch" onclick="togDet('+c.id+')">';
     html+='<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;margin-right:4px" onclick="event.stopPropagation()"><div style="font-size:0.5rem;color:var(--muted);text-transform:uppercase">Pos</div><input type="number" class="pi" min="1" max="'+D.cl.length+'" value="'+(ri+1)+'" onchange="moverA('+c.id+',this.value)"></div>';
     html+='<div class="cin"><div class="cnm">'+c.nombre+'</div><div style="font-size:0.68rem;color:var(--muted);margin-top:2px">'+(c.prod||'–')+'</div><div style="font-size:0.65rem;color:var(--muted);margin-top:1px">📍 '+(c.dist||'')+(c.tipDir&&c.tipDir!=='ok'?' <span title="'+(DIR_TIPS[c.tipDir]||'')+'" style="background:'+(c.tipDir==='mz'?'rgba(239,68,68,0.15)':'rgba(245,158,11,0.15)')+';border-radius:5px;padding:1px 5px;font-size:0.6rem;font-weight:700;color:'+(c.tipDir==='mz'?'#EF4444':'#F59E0B')+'">'+(DIR_LABELS[c.tipDir]||'')+' '+(DIR_TIPS[c.tipDir]||'')+'</span>':'')+'</div>'+(c.obs?'<div style="font-size:0.65rem;color:var(--warn);margin-top:2px">⚠️ '+c.obs+'</div>':'')+'</div>';
-    html+='<div style="flex-shrink:0;text-align:right"><div style="font-family:Bebas Neue,sans-serif;font-size:1.05rem;color:'+pc+'">'+fmt(c.cobrar)+'</div><div class="t'+sc+'">'+sl+'</div>'+(c.hora?'<div style="font-size:0.6rem;color:var(--muted);margin-top:2px">🕐 '+c.hora+'</div>':'')+(tel?'<a href="tel:+51'+tel+'" onclick="event.stopPropagation()" style="display:block;margin-top:4px;background:var(--ac);color:#fff;border-radius:6px;padding:3px 8px;font-size:0.65rem;font-weight:700;text-align:center;text-decoration:none;transition:opacity 0.2s">📞 Llamar</a>':'')+(tel?'<a href="'+getWALink(c)+'" onclick="event.stopPropagation()" target="_blank" style="display:block;margin-top:3px;background:linear-gradient(135deg,#075e54,#128c7e);color:#fff;border-radius:6px;padding:3px 8px;font-size:0.65rem;font-weight:700;text-align:center;text-decoration:none">💬 WA</a>':'')+'</div>';
+    html+='<div style="flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:3px"><div style="font-family:Bebas Neue,sans-serif;font-size:1.05rem;color:'+pc+'">'+fmt(c.cobrar)+'</div><div class="t'+sc+'">'+sl+'</div>'+(c.hora?'<div style="font-size:0.6rem;color:var(--muted)">🕐 '+c.hora+'</div>':'')+(tel?'<a href="tel:+51'+tel+'" onclick="event.stopPropagation()" style="display:flex;align-items:center;justify-content:center;gap:5px;margin-top:2px;background:linear-gradient(135deg,#10B981,#059669);color:#fff;border-radius:10px;padding:8px 12px;font-size:0.82rem;font-weight:800;text-align:center;text-decoration:none;min-width:70px;box-shadow:0 3px 10px rgba(16,185,129,0.4);-webkit-tap-highlight-color:transparent">📞 Llamar</a>':'')+(tel?'<a href="'+getWALink(c)+'" onclick="event.stopPropagation()" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:5px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-radius:10px;padding:8px 12px;font-size:0.82rem;font-weight:800;text-align:center;text-decoration:none;min-width:70px;box-shadow:0 3px 10px rgba(37,211,102,0.4);-webkit-tap-highlight-color:transparent">💬 WA</a>':'')+'</div>';
     html+='</div><div class="cdet" id="det-'+c.id+'">';
     html+='<div class="dg"><div class="di"><div class="dl">📍 Dirección</div><div class="dval" id="sd-'+c.id+'">'+(c.dir||'–')+'</div></div><div class="di"><div class="dl">🏙️ Distrito</div><div class="dval" id="sdi-'+c.id+'">'+(c.dist||'–')+'</div></div><div class="di"><div class="dl">📞 Celular</div><div class="dval" id="sc-'+c.id+'">'+(c.cel||'–')+'</div></div><div class="di"><div class="dl">💰 Precio orig.</div><div class="dval">'+fmt(c.precio)+'</div></div></div>';
     html+='<button id="bed-'+c.id+'" onclick="togEd('+c.id+')" style="width:100%;padding:8px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:\'Barlow\',sans-serif;font-size:0.78rem;cursor:pointer;margin-bottom:10px;transition:all 0.2s">✏️ Editar dir / distrito / celular</button>';
@@ -1923,6 +1937,8 @@ function cerrar(){
   // Resetear odómetro para el próximo día
   if(_odo){ _odo.kmTotal=0; _odo.lastLat=null; _odo.lastLng=null; }
   localStorage.setItem('odo_km_hoy','0');
+  // Resetear cronómetro al cerrar ruta
+  resetCronometro();
   D.cl=[];sv();render();goTo('hist',document.querySelectorAll('.nb')[4]);
 }
 function limpiar(){if(confirm('¿Limpiar sin guardar?')){D.cl=[];sv();render();}}
@@ -2317,6 +2333,58 @@ function actualizarUIKm(speed){
 
 // Iniciar odómetro al cargar
 setTimeout(initOdometro, 1000);
+
+// ── CRONÓMETRO DE RUTA ────────────────────────────────────────
+var _crono = {
+  activo: false,
+  inicio: null,
+  acumulado: 0,
+  intervalo: null
+};
+function _cronoTick(){
+  var total = _crono.acumulado + (Date.now() - _crono.inicio);
+  var h = Math.floor(total / 3600000);
+  var m = Math.floor((total % 3600000) / 60000);
+  var s = Math.floor((total % 60000) / 1000);
+  var txt = h > 0
+    ? h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0')
+    : String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  var disp = el('crono-display');
+  if(disp) disp.textContent = txt;
+}
+function togCronometro(){
+  var disp  = el('crono-display');
+  var label = el('crono-label');
+  var wrap  = disp && disp.parentElement;
+  if(!_crono.activo){
+    _crono.inicio  = Date.now();
+    _crono.activo  = true;
+    _crono.intervalo = setInterval(_cronoTick, 1000);
+    if(label) label.textContent = '⏱ PAUSA';
+    if(wrap){wrap.style.background='rgba(16,185,129,0.22)';wrap.style.borderColor='rgba(16,185,129,0.6)';}
+    mostrarToast('⏱️ Cronómetro iniciado');
+  } else {
+    _crono.acumulado += Date.now() - _crono.inicio;
+    _crono.activo = false;
+    clearInterval(_crono.intervalo);
+    if(label) label.textContent = '▶ CONT.';
+    if(wrap){wrap.style.background='rgba(245,158,11,0.12)';wrap.style.borderColor='rgba(245,158,11,0.4)';}
+    if(disp) disp.style.color = 'var(--accent-warn)';
+    mostrarToast('⏸️ Pausado — toca para continuar');
+  }
+}
+function resetCronometro(){
+  _crono.activo = false;
+  _crono.acumulado = 0;
+  _crono.inicio = null;
+  clearInterval(_crono.intervalo);
+  var disp  = el('crono-display');
+  var label = el('crono-label');
+  var wrap  = disp && disp.parentElement;
+  if(disp){ disp.textContent = '00:00'; disp.style.color = 'var(--accent-green)'; }
+  if(label) label.textContent = 'RUTA';
+  if(wrap){wrap.style.background='rgba(16,185,129,0.12)';wrap.style.borderColor='rgba(16,185,129,0.3)';}
+}
 
 // ── Manejo del botón físico RETROCEDER en Capacitor ──────────────
 document.addEventListener('deviceready', function(){}, false);
