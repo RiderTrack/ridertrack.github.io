@@ -229,8 +229,6 @@ body{background:var(--bg-main);color:var(--text-main);margin:0;padding:0;min-hei
 }
 body.dark-mode .nav{background:rgba(26,27,38,0.97);border-top:1px solid rgba(255,255,255,0.06)}
 
-/* ===== MODAL BODY LOCK ===== */
-body.modal-open{overflow:hidden!important}
 .nb{
   flex:1;padding:4px 2px;background:none;border:none;border-top:none;
   color:var(--text-muted);font-size:0.6rem;font-weight:700;
@@ -473,10 +471,6 @@ body.dark-mode .hc{background:#1A1B26;border-color:rgba(255,255,255,0.04)}
 body.dark-mode .hst{background:#2B2D3A;border-color:rgba(255,255,255,0.04)}
 .hv{font-size:1rem;font-weight:700;color:var(--text-main)}
 .hl{font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600}
-
-/* ===== PROGRESS ===== */
-.pb2-mini{background:rgba(0,0,0,0.06);border-radius:99px;height:6px;overflow:hidden;margin:10px 0}
-body.dark-mode .pb2-mini{background:rgba(255,255,255,0.08)}
 
 /* ===== TAGS MENSAJE ===== */
 .tc{background:var(--purple-light);border:1.5px solid rgba(123,44,191,0.3);border-radius:8px;padding:4px 10px;font-size:0.7rem;color:var(--purple-neon);cursor:pointer;font-weight:700;display:inline-block;margin:2px;transition:var(--transition-smooth)}
@@ -817,15 +811,17 @@ document.addEventListener("DOMContentLoaded",function(){
     <div class="msec">&#127949;&#65039; Mi Moto</div>
     <button class="mitem" onclick="abrirMoto()">&#127949;&#65039; Control de mantenimiento</button>
     <div class="msec">&#128172; Mensajeria</div>
+    <button class="mitem" onclick="abrirMsgWA();cerrarMenu()" style="background:linear-gradient(135deg,rgba(37,211,102,0.12),rgba(37,211,102,0.06));border-color:rgba(37,211,102,0.35);color:#25d366;font-weight:700">💬 Editar mensaje WhatsApp</button>
     <button class="mitem" onclick="abrirClientes()" style="background:linear-gradient(135deg,rgba(37,99,235,0.15),rgba(79,142,247,0.1));border-color:rgba(79,142,247,0.3);color:var(--ac)">&#128172; ClienteTrack — Mensajes y QR</button>
     <div class="msec">&#9881;&#65039; Apariencia</div>
     <button class="mitem" onclick="abrirApiKey();cerrarMenu()" style="background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(79,70,229,0.1));border-color:rgba(99,102,241,0.3);color:#818cf8;font-weight:700">🤖 Configurar API Key IA</button>
+    <button class="mitem" onclick="abrirConfigNotif();cerrarMenu()" style="background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.07));border-color:rgba(16,185,129,0.3);color:#10B981;font-weight:700">🔔 Recordatorios de ruta</button>
     <button class="mitem" onclick="abrirThemeStudio();cerrarMenu()" style="background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(239,68,68,0.08));border-color:rgba(245,158,11,0.4);color:#F59E0B;font-weight:800">🎨 Theme Studio — Personalizar app</button>
     <div class="msec" style="color:rgba(255,51,85,0.7)">&#9888;&#65039; Peligroso</div>
     <button class="mitem" style="color:var(--danger);border-color:rgba(255,51,85,0.2)" onclick="limpiar();cerrarMenu()">&#128465;&#65039; Limpiar ruta actual</button>
     <button class="mitem" style="color:var(--danger);border-color:rgba(255,51,85,0.2)" onclick="limpH();cerrarMenu()">&#128465;&#65039; Limpiar historial</button>
   </div>
-  <div style="padding:12px;border-top:1px solid var(--border);font-size:0.62rem;color:var(--muted);text-align:center">RiderTrack by Rudy Alen &middot; v3.0</div>
+  <div style="padding:12px;border-top:1px solid var(--border);font-size:0.62rem;color:var(--muted);text-align:center">RiderTrack by Rudy Alen &middot; v3.1 — 📸🔔💧</div>
 </div>
 <div class="topbar">
   <div class="topbar-left">
@@ -1229,9 +1225,71 @@ document.addEventListener("DOMContentLoaded",function(){
   </div>
 </div>
 
-<script>
-// FIREBASE
+<script>// ═══════════════════════════════════════════════════════════
+// VARIABLES GLOBALES
+// ═══════════════════════════════════════════════════════════
+
+// Firebase
 var db=null,fbAuth=null,fbUserId=null;
+
+// Estado principal de la app
+var D=JSON.parse(localStorage.getItem('urRoute')||'{}');
+if(!D.cl)D.cl=[];if(!D.hist)D.hist=[];if(!D.bib)D.bib=[];if(!D.reprog)D.reprog=[];
+if(!D.msg)D.msg='Hola {nombre}, soy Rudy. Ya salgo con tu pedido de {producto} (S/{precio}). Llego entre {hora_inicio} y {hora_fin}.';
+if(!D.msgWA)D.msgWA='Hola {nombre}, soy Rudy de delivery. Ya voy con tu pedido de {producto} (S/{precio}).';
+if(!D.light)D.light=false;if(!D.ac)D.ac='#3b82f6';if(!D.ac2)D.ac2='#1d4ed8';
+if(!D.myYape)D.myYape='';if(!D.empYape)D.empYape='';
+if(!D.ctaBCP)D.ctaBCP='';if(!D.ctaIBK)D.ctaIBK='';if(!D.ctaBBVA)D.ctaBBVA='';if(!D.ctaOtra)D.ctaOtra='';
+
+// Estados de pago
+var PT=['efectivo','yape-rudy','cambio','yape-efectivo'];
+var PE=['pos','pago-link','transferencia','yape-plin','jose-smith','empresa'];
+var PF=['fallida','reprogramar','rechazado','devuelto','ausente','no-contesta','cancelado'];
+var PL={efectivo:'💵 Efectivo','yape-rudy':'📲 Yape Rudy','yape-efectivo':'💜 Yape+Efectivo','yape-plin':'📲 Yape/Plin',transferencia:'🏦 Transferencia',pos:'💳 POS','pago-link':'🔗 Pago Link','jose-smith':'🤝 Jose Smith',cambio:'💱 Cambio',mixto:'🔀 Mixto',cancelado:'✖ Cancelado',empresa:'🏪 Empresa',rechazado:'🚫 Rechazado',ausente:'🚶 Ausente',fallida:'❌ Fallida','no-contesta':'📵 N.Contesta',reprogramar:'🔄 Reprogramar',devuelto:'↩️ Devuelto'};
+
+// Filtros de lista
+var FIL='t',SRC='',DIST_FIL='',PROD_FIL='';
+
+// Clasificación de direcciones
+var DIR_LABELS = {ok:'🟢',mz:'🔴',ref:'🟡',sin:'⚪'};
+var DIR_TIPS   = {ok:'Normal',mz:'Manzana',ref:'Sin número',sin:'Sin dirección'};
+
+// Calendario e historial
+var calAno=new Date().getFullYear(),calMes=new Date().getMonth();
+var calVisible=false;
+var hPerAct='sem';
+
+// Mensajes WhatsApp
+var _waPos=0,_waPosE=0;
+
+// Mapa Leaflet
+var mapaL=null,mapaMarkers=[],geoCache={},mapaLoading=false;
+
+// Cronómetro de ruta
+var _crono={activo:false,inicio:null,acumulado:0,intervalo:null};
+
+// Notificaciones
+var _notifScrollY=0;
+
+// Excel en nube
+var excelsNube=[];
+
+// Reprogramados
+var REPROG_DIAS=7;
+
+// URLs apps TrackVerse
+var URL_CLIENTETRACK='clientetrack.html';
+var URL_MOTO='moto.html';
+
+// Theme Studio
+var TS_DEFAULTS={lum:'deep',tema:'purple',estilo:'elegante',fondo:'ninguno',compacto:false,fontSize:100,customColor:'',glassOpacity:0.65,fuente:'outfit',radio:'redondeado',anim:'normal'};
+var _tsAnimId=null;
+
+// Auto-sync timer
+var _autoSyncTimer;
+
+// ═══════════════════════════════════════════════════════════
+// FIREBASE
 // ║  SECCIÓN 1: FIREBASE                                         ║
 // ║  Funciones: fbSetStatus, guardarEnFB, initFirebase            ║
 // ║             syncNube, loadNube, cargarBackup, elimBackup      ║
@@ -1392,19 +1450,6 @@ function cargarBackup(id){
 }
 function elimBackup(id){if(!confirm('¿Eliminar backup '+id+'?'))return;db.collection('usuarios').doc(fbUserId).collection('backups').doc(id).delete().then(function(){document.querySelectorAll('[style*="z-index:3001"],[style*="z-index:3000"]').forEach(function(e){e.remove();});loadNube();}).catch(function(e){alert('Error: '+e.message);});}
 
-// STATE
-var D=JSON.parse(localStorage.getItem('urRoute')||'{}');
-if(!D.cl)D.cl=[];if(!D.hist)D.hist=[];if(!D.bib)D.bib=[];if(!D.reprog)D.reprog=[];
-if(!D.msg)D.msg='Hola {nombre}, soy Rudy. Ya salgo con tu pedido de {producto} (S/{precio}). Llego entre {hora_inicio} y {hora_fin}.';
-if(!D.msgWA)D.msgWA='Hola {nombre}, soy Rudy de delivery. Ya voy con tu pedido de {producto} (S/{precio}).';
-if(!D.light)D.light=false;if(!D.ac)D.ac='#3b82f6';if(!D.ac2)D.ac2='#1d4ed8';
-if(!D.myYape)D.myYape='';if(!D.empYape)D.empYape='';
-if(!D.ctaBCP)D.ctaBCP='';if(!D.ctaIBK)D.ctaIBK='';if(!D.ctaBBVA)D.ctaBBVA='';if(!D.ctaOtra)D.ctaOtra='';
-var PT=['efectivo','yape-rudy','cambio','yape-efectivo'];
-var PE=['pos','pago-link','transferencia','yape-plin','jose-smith','empresa'];
-var PF=['fallida','reprogramar','rechazado','devuelto','ausente','no-contesta','cancelado'];
-var PL={efectivo:'💵 Efectivo','yape-rudy':'📲 Yape Rudy','yape-efectivo':'💜 Yape+Efectivo','yape-plin':'📲 Yape/Plin',transferencia:'🏦 Transferencia',pos:'💳 POS','pago-link':'🔗 Pago Link','jose-smith':'🤝 Jose Smith',cambio:'💱 Cambio',mixto:'🔀 Mixto',cancelado:'✖ Cancelado',empresa:'🏪 Empresa',rechazado:'🚫 Rechazado',ausente:'🚶 Ausente',fallida:'❌ Fallida','no-contesta':'📵 N.Contesta',reprogramar:'🔄 Reprogramar',devuelto:'↩️ Devuelto'};
-var FIL='t',SRC='',DIST_FIL='',PROD_FIL='';
 
 // ║  SECCIÓN 2: UTILIDADES CORE                                  ║
 // ║  Funciones: sv() guarda D en urRoute, el() = getElementById  ║
@@ -1429,11 +1474,41 @@ function sv(){
     }
   }, 3000);
 }
-var _autoSyncTimer;
 function el(id){return document.getElementById(id);}
 function setEl(id,v){var e=el(id);if(e)e.textContent=v;}
 function fmt(n){return 'S/ '+parseFloat(n||0).toFixed(2);}
 function getFechaHoy(){return new Date().toLocaleDateString('es-PE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});}
+
+// ── Detección de entorno ─────────────────────────────────────
+function esCapacitor(){
+  return typeof window.Capacitor !== 'undefined' && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+}
+function esWebView(){
+  var ua=navigator.userAgent||'';
+  return ua.toLowerCase().includes('gonative')
+    ||ua.toLowerCase().includes('median')
+    ||(ua.includes('Android')&&ua.includes('wv'))
+    ||typeof window.gonative!=='undefined'
+    ||typeof window.median!=='undefined'
+    ||esCapacitor();
+}
+
+// ── Toasts ───────────────────────────────────────────────────
+function mostrarToast(msg){
+  var t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1E1E24;color:#fff;padding:10px 20px;border-radius:20px;font-size:0.82rem;font-weight:700;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);white-space:nowrap;animation:fadeIn 0.3s ease';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.remove();},2800);
+}
+function mostrarToastLargo(msg){
+  var t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1E1E24;color:#fff;padding:12px 20px;border-radius:16px;font-size:0.8rem;font-weight:700;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);max-width:85vw;text-align:center;white-space:pre-line;animation:fadeIn 0.3s ease';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.remove();},5000);
+}
+
 
 // RIPPLE
 document.addEventListener('click',function(e){var btn=e.target.closest('.btn,.mitem,.nb,.fch,.sm,.pb,.cal-d');if(!btn)return;var r=document.createElement('span');var rect=btn.getBoundingClientRect();var sz=Math.max(rect.width,rect.height)*2;r.className='ripple-el';r.style.cssText='width:'+sz+'px;height:'+sz+'px;left:'+(e.clientX-rect.left-sz/2)+'px;top:'+(e.clientY-rect.top-sz/2)+'px';btn.appendChild(r);setTimeout(function(){r.remove();},600);});
@@ -1514,8 +1589,6 @@ function clasificarDir(dir){
   return 'ref';
 }
 
-var DIR_LABELS = {ok:'🟢',mz:'🔴',ref:'🟡',sin:'⚪'};
-var DIR_TIPS   = {ok:'Normal',mz:'Manzana',ref:'Sin número',sin:'Sin dirección'};
 
 // Recalcular tipDir de clientes existentes que no lo tienen o están mal clasificados
 (function(){
@@ -1784,6 +1857,147 @@ function setPago(id,p){
   sv();
   // Diferir render para evitar congelamiento al destruir DOM mientras se procesa el click
   setTimeout(function(){ rLista(); rRes(); rpUpdBadge(); }, 50);
+  // Si es estado de entrega → ofrecer foto opcional
+  if(_estadosEntrega.includes(p)){
+    setTimeout(function(){ mostrarBtnFotoEntrega(id); }, 150);
+  }
+}
+
+// ── FOTO DE ENTREGA ───────────────────────────────────────────
+function mostrarBtnFotoEntrega(clienteId){
+  var c = D.cl.find(function(x){ return x.id===clienteId; });
+  if(!c) return;
+  var ov = document.createElement('div');
+  ov.id = 'foto-entrega-toast';
+  ov.style.cssText = 'position:fixed;bottom:95px;left:50%;transform:translateX(-50%);z-index:5000;'+
+    'background:#1E1E2F;border:1px solid rgba(123,44,191,0.4);border-radius:18px;'+
+    'padding:12px 16px;display:flex;align-items:center;gap:10px;'+
+    'box-shadow:0 6px 24px rgba(0,0,0,0.5);animation:fadeIn 0.25s ease;white-space:nowrap';
+  var txt = document.createElement('span');
+  txt.style.cssText = 'font-size:0.8rem;color:#E2E8F0;font-weight:600';
+  txt.textContent = '¿Foto de entrega?';
+  var btnFoto = document.createElement('button');
+  btnFoto.style.cssText = 'padding:8px 14px;background:linear-gradient(135deg,#7B2CBF,#5a189a);'+
+    'border:none;border-radius:10px;color:#fff;font-weight:700;font-size:0.8rem;cursor:pointer';
+  btnFoto.textContent = '📸 Foto';
+  btnFoto.onclick = function(){ ov.remove(); tomarFotoEntrega(clienteId); };
+  var btnNo = document.createElement('button');
+  btnNo.style.cssText = 'padding:8px 10px;background:rgba(255,255,255,0.08);border:none;'+
+    'border-radius:10px;color:#A5A6C4;font-size:0.8rem;cursor:pointer';
+  btnNo.textContent = '✕';
+  btnNo.onclick = function(){ ov.remove(); };
+  ov.appendChild(txt); ov.appendChild(btnFoto); ov.appendChild(btnNo);
+  document.body.appendChild(ov);
+  setTimeout(function(){ if(ov.parentNode) ov.remove(); }, 6000);
+}
+
+function tomarFotoEntrega(clienteId){
+  // Plugin @capacitor/camera si disponible
+  var Camera = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Camera;
+  if(Camera){
+    Camera.getPhoto({
+      quality:70, allowEditing:false, resultType:'base64',
+      source:'PROMPT', width:800, correctOrientation:true
+    }).then(function(photo){
+      var base64 = 'data:image/jpeg;base64,'+photo.base64String;
+      _subirFotoStorage(clienteId, base64, photo.base64String);
+    }).catch(function(e){
+      if(e && e.message && !e.message.includes('cancel')) mostrarToast('❌ Error cámara: '+e.message);
+    });
+  } else {
+    // Fallback web — input file
+    var inp = document.createElement('input');
+    inp.type='file'; inp.accept='image/*'; inp.capture='camera';
+    inp.onchange = function(){
+      var f = inp.files[0]; if(!f) return;
+      var r = new FileReader();
+      r.onload = function(ev){
+        var base64Full = ev.target.result;
+        var b64 = base64Full.split(',')[1];
+        _subirFotoStorage(clienteId, base64Full, b64);
+      };
+      r.readAsDataURL(f);
+    };
+    inp.click();
+  }
+}
+
+function _subirFotoStorage(clienteId, base64Full, b64raw){
+  if(!fbUserId){ mostrarToast('⚠️ Sin sesión Firebase'); return; }
+  mostrarToast('⏳ Subiendo foto...');
+  var ts = Date.now();
+  var path = 'fotos/'+fbUserId+'/'+clienteId+'_'+ts+'.jpg';
+
+  // Firebase Storage vía REST API (compatible con firebase compat SDK v10)
+  var url = 'https://firebasestorage.googleapis.com/v0/b/ridertrack-93c8a.appspot.com/o/'+
+    encodeURIComponent(path)+'?uploadType=media';
+
+  // Convertir base64 a Blob
+  var byteStr = atob(b64raw);
+  var u8 = new Uint8Array(byteStr.length);
+  for(var i=0;i<byteStr.length;i++) u8[i]=byteStr.charCodeAt(i);
+  var blob = new Blob([u8],{type:'image/jpeg'});
+
+  // Obtener token de autenticación
+  fbAuth.currentUser.getIdToken().then(function(token){
+    fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'image/jpeg','Authorization':'Bearer '+token},
+      body:blob
+    })
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+      if(data && data.downloadTokens){
+        var fotoUrl = 'https://firebasestorage.googleapis.com/v0/b/ridertrack-93c8a.appspot.com/o/'+
+          encodeURIComponent(path)+'?alt=media&token='+data.downloadTokens;
+        var c = D.cl.find(function(x){ return x.id===clienteId; });
+        if(c){ c.fotoUrl=fotoUrl; c.fotoBase64=base64Full; sv(); rLista(); }
+        mostrarToast('✅ Foto de entrega guardada');
+      } else {
+        // Guardar solo base64 local si falla storage
+        var c2 = D.cl.find(function(x){ return x.id===clienteId; });
+        if(c2){ c2.fotoBase64=base64Full; sv(); rLista(); }
+        mostrarToast('📸 Foto guardada localmente');
+      }
+    })
+    .catch(function(){
+      // Sin internet → guardar local
+      var c3 = D.cl.find(function(x){ return x.id===clienteId; });
+      if(c3){ c3.fotoBase64=base64Full; sv(); rLista(); }
+      mostrarToast('📸 Foto guardada localmente');
+    });
+  }).catch(function(){
+    // Sin token → guardar local
+    var c4 = D.cl.find(function(x){ return x.id===clienteId; });
+    if(c4){ c4.fotoBase64=base64Full; sv(); rLista(); }
+    mostrarToast('📸 Foto guardada localmente');
+  });
+}
+
+function verFotoEntrega(clienteId){
+  var c = D.cl.find(function(x){ return x.id===clienteId; });
+  if(!c) return;
+  var src = c.fotoUrl || c.fotoBase64;
+  if(!src) return;
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);'+
+    'display:flex;flex-direction:column;align-items:center;justify-content:center;'+
+    'animation:fadeIn 0.2s ease;padding:20px';
+  var img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'max-width:100%;max-height:75vh;border-radius:14px;object-fit:contain;'+
+    'box-shadow:0 8px 40px rgba(0,0,0,0.6)';
+  var info = document.createElement('div');
+  info.style.cssText = 'color:#E2E8F0;font-size:0.8rem;margin-top:12px;text-align:center;font-weight:600';
+  info.textContent = '📸 '+c.nombre+' — Foto de entrega';
+  var btnCerrar = document.createElement('button');
+  btnCerrar.style.cssText = 'margin-top:16px;padding:12px 28px;background:rgba(255,255,255,0.12);'+
+    'border:1px solid rgba(255,255,255,0.2);border-radius:12px;color:#fff;font-size:0.85rem;cursor:pointer';
+  btnCerrar.textContent = '✕ Cerrar';
+  btnCerrar.onclick = function(){ ov.remove(); };
+  ov.onclick = function(e){ if(e.target===ov) ov.remove(); };
+  ov.appendChild(img); ov.appendChild(info); ov.appendChild(btnCerrar);
+  document.body.appendChild(ov);
 }
 function setMx(id){var c=D.cl.find(function(x){return x.id===id;});if(!c)return;var ef=el('mef-'+id),emp=el('memp-'+id);if(ef)c.mEf=parseFloat(ef.value)||0;if(emp)c.mEmp=parseFloat(emp.value)||0;sv();rRes();}
 function setYE(id){var c=D.cl.find(function(x){return x.id===id;});if(!c)return;var ef=el('yef-'+id),yp=el('yyp-'+id),vt=el('yvt-'+id);if(ef)c.mEf=parseFloat(ef.value)||0;if(yp)c.mYp=parseFloat(yp.value)||0;if(vt)c.mVt=parseFloat(vt.value)||0;var ne=el('yn-'+id);if(ne)ne.textContent=fmt(Math.max(0,c.mEf+c.mYp-c.mVt));sv();rRes();}
@@ -1861,6 +2075,20 @@ function rLista(){
     html+='<div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:9px;padding:11px;margin-bottom:10px"><div style="font-size:0.62rem;color:var(--ac);font-weight:700;text-transform:uppercase;margin-bottom:8px">✏️ A cobrar</div><div style="display:flex;gap:7px;align-items:center;margin-bottom:7px"><input type="number" id="cob-'+c.id+'" value="'+(c.cobrar||'')+'" step="0.01" style="flex:1" onchange="eCob('+c.id+')"><button onclick="eCob('+c.id+')" style="padding:9px 14px;background:var(--ac);border:none;border-radius:8px;color:#fff;font-weight:700;cursor:pointer;font-family:\'Barlow\',sans-serif;font-size:0.8rem;flex-shrink:0;transition:transform 0.15s">✅</button></div><div style="font-size:0.62rem;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:5px">📝 Nota interna</div><div style="display:flex;gap:7px"><textarea id="nota-'+c.id+'" rows="2" style="flex:1;resize:none;font-size:0.8rem" oninput="eNota('+c.id+')">'+(c.nota||'')+'</textarea><button onclick="eNota('+c.id+')" style="padding:9px 10px;background:var(--s1);border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;font-size:0.8rem;flex-shrink:0;transition:transform 0.15s">💾</button></div></div>';
     html+='<div style="font-size:0.62rem;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Forma de pago</div>';
     html+='<div class="pg">'+pgH+'</div>'+mbH;
+    // Foto de entrega — thumbnail + botón tomar foto
+    var fotoSrc = c.fotoUrl || c.fotoBase64;
+    html += '<div style="margin-top:10px;margin-bottom:5px">';
+    if(fotoSrc){
+      html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:8px 10px">';
+      html += '<img src="'+fotoSrc+'" onclick="verFotoEntrega('+c.id+')" style="width:52px;height:52px;border-radius:8px;object-fit:cover;cursor:pointer;flex-shrink:0;border:2px solid rgba(16,185,129,0.4)">';
+      html += '<div style="flex:1"><div style="font-size:0.7rem;color:#10B981;font-weight:700;margin-bottom:2px">📸 Foto de entrega</div>';
+      html += '<div style="font-size:0.65rem;color:var(--muted)">Toca la foto para ver completa</div></div>';
+      html += '<button onclick="tomarFotoEntrega('+c.id+')" style="padding:6px 10px;background:rgba(123,44,191,0.15);border:1px solid rgba(123,44,191,0.3);border-radius:8px;color:var(--ac);font-size:0.7rem;cursor:pointer;flex-shrink:0">📷 Cambiar</button>';
+      html += '</div>';
+    } else {
+      html += '<button onclick="tomarFotoEntrega('+c.id+')" style="width:100%;padding:8px;background:rgba(123,44,191,0.08);border:1px dashed rgba(123,44,191,0.35);border-radius:9px;color:var(--muted);font-size:0.78rem;cursor:pointer">📸 Agregar foto de entrega</button>';
+    }
+    html += '</div>';
     html+='<button class="btn brd" onclick="delC('+c.id+')" style="margin-top:5px;padding:7px">🗑️ Eliminar</button>';
     html+='</div></div>';
   }
@@ -1890,15 +2118,6 @@ function updBadge(){
       var bBat=el('badge-bat');if(bBat)bBat.textContent=batStr;
       var tBat=el('tb-bat');if(tBat)tBat.textContent=batStr;
       var pBat=el('pg-bat');if(pBat)pBat.textContent=batStr;
-    });
-  }
-  // Battery
-  if(navigator.getBattery){
-    navigator.getBattery().then(function(bat){
-      var pct=Math.round(bat.level*100);
-      var icon=bat.charging?'⚡':'🔋';
-      var bBat=el('badge-bat');
-      if(bBat)bBat.textContent=icon+' '+pct+'%';
     });
   }
 }
@@ -1953,9 +2172,6 @@ function cerrar(){
 }
 function limpiar(){if(confirm('¿Limpiar sin guardar?')){D.cl=[];sv();render();}}
 
-// HISTORIAL CON CALENDARIO
-var calAno=new Date().getFullYear(),calMes=new Date().getMonth();
-var calVisible=false;
 
 // ║  SECCIÓN 11: HISTORIAL Y CALENDARIO                          ║
 // ║  Funciones: togCalendario, calCambiar, renderCal             ║
@@ -2091,8 +2307,6 @@ function togResumenPeriodo(){
   if(!abierto) hPeriodo(hPerAct||'sem');
 }
 
-// --- Resumen por periodo (semana / mes / todo) ---
-var hPerAct = 'sem';
 function hPeriodo(per){
   hPerAct = per;
   // Resaltar botón activo
@@ -2158,14 +2372,47 @@ function togH(id){var e=el(id);if(!e)return;var o=e.style.display!=='none';e.sty
 function delH(id){if(confirm('¿Eliminar ruta?')){D.hist=D.hist.filter(function(h){return h.id!==id;});sv();var det=el('cal-detalle');if(det)det.style.display='none';setEl('h-tT',fmt(D.hist.reduce(function(a,h){return a+(h.tT||0);},0)));setEl('h-tR',D.hist.length);if(calVisible)renderCal();}}
 function limpH(){if(confirm('¿Borrar todo el historial?')){D.hist=[];sv();rHist();}}
 
+// ── CORRECTOR DE FECHAS DEL HISTORIAL ──────────────────────────
+function corregirFechasHistorial(){
+  if(!D.hist||!D.hist.length){mostrarToast('No hay historial');return;}
+  var corregidos=0;
+  D.hist.forEach(function(h){
+    if(!h.fechaId) return;
+    // Detectar si la fecha tiene formato YYYY-MM-DD
+    var m=h.fechaId.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!m) return;
+    // Restar un día
+    var d=new Date(h.fechaId+'T12:00:00'); // Mediodía para evitar problemas de TZ
+    d.setDate(d.getDate()-1);
+    var nueva=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    h.fechaId=nueva;
+    // Actualizar fecha legible también
+    var dObj=new Date(nueva+'T12:00:00');
+    h.fecha=dObj.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'});
+    h.fechaL=dObj.toLocaleDateString('es-PE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+    corregidos++;
+  });
+  sv();
+  render();
+  mostrarToast('✅ '+corregidos+' rutas corregidas');
+}
+
+
 // MENSAJES
 // ║  SECCIÓN 12: CONFIGURACIÓN Y MENSAJES                        ║
 // ║  Funciones: insT/insTagWA (insertar tags), saveMsg/saveMsgWA ║
 // ║             saveDatos, togSec, copNums, cpFb, sCop           ║
 function insT(t){var ta=el('msgA');if(!ta)return;var s=ta.selectionStart,e=ta.selectionEnd;ta.value=ta.value.substring(0,s)+t+ta.value.substring(e);ta.focus();ta.selectionStart=ta.selectionEnd=s+t.length;}
-function insTagWA(t){var ta=el('msgWA');if(!ta)return;var s=ta.selectionStart,e=ta.selectionEnd;ta.value=ta.value.substring(0,s)+t+ta.value.substring(e);ta.focus();ta.selectionStart=ta.selectionEnd=s+t.length;}
+function insTagWA(t){
+  var ta=el('msgWA');if(!ta)return;
+  var s=_waPos||0,e=_waPosE||s;
+  ta.value=ta.value.substring(0,s)+t+ta.value.substring(e);
+  _waPos=s+t.length;_waPosE=_waPos;
+  ta.focus();ta.selectionStart=ta.selectionEnd=_waPos;
+  _prevWA();
+}
 function saveMsg(){D.msg=el('msgA').value;sv();alert('✅ Guardado');}
-function saveMsgWA(){D.msgWA=el('msgWA').value;sv();alert('✅ Mensaje WA guardado');}
+function saveMsgWA(){var ta=document.getElementById('msgWA');if(!ta)return;D.msgWA=ta.value.trim();sv();cerrarMsgWA();mostrarToast('✅ Mensaje WhatsApp guardado');}
 function saveDatos(){D.myYape=(el('myYape').value||'').trim();D.empYape=(el('empYape').value||'').trim();D.ctaBCP=(el('ctaBCP').value||'').trim();D.ctaIBK=(el('ctaIBK').value||'').trim();D.ctaBBVA=(el('ctaBBVA').value||'').trim();D.ctaOtra=(el('ctaOtra').value||'').trim();sv();alert('✅ Datos guardados');}
 function togSec(id){var e=el(id);if(!e)return;var o=e.style.display!=='none';e.style.display=o?'none':'block';var ar=el('arr-'+id.replace('sec-',''));if(ar)ar.textContent=o?'▼':'▲';}
 function copNums(){var ns=D.cl.filter(function(c){return c.cel;}).map(function(c){return cTel(c.cel);}).filter(Boolean);if(!ns.length){alert('No hay números');return;}var t=ns.join('\n');if(navigator.clipboard){navigator.clipboard.writeText(t).then(sCop).catch(function(){cpFb(t);});}else{cpFb(t);}}
@@ -2209,8 +2456,6 @@ function rNav(){
   l.innerHTML=h;
 }
 
-// MAPA
-var mapaL=null,mapaMarkers=[],geoCache={},mapaLoading=false;
 function iniciarMapa(){if(mapaL){mapaL.invalidateSize();return;}mapaL=L.map('leaflet-map',{zoomControl:true,attributionControl:false});L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(mapaL);mapaL.setView([-12.0464,-77.0428],12);}
 function agregarPin(c,lat,lng){var sc=stc(c.st);var col=sc==='o'?'#3b82f6':sc==='e'?'#60a5fa':sc==='f'?'#ff3355':sc==='w'?'#ffcc00':'#8b5cf6';var icon=L.divIcon({html:'<div style="background:'+col+';color:#fff;font-family:Bebas Neue,sans-serif;font-size:0.85rem;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5)">'+c.num+'</div>',className:'',iconSize:[30,30],iconAnchor:[15,15]});var popup='<div style="font-family:Barlow,sans-serif;min-width:160px;padding:4px"><div style="font-weight:700;font-size:0.9rem;margin-bottom:2px">'+c.nombre+'</div><div style="font-size:0.72rem;color:#666;margin-bottom:6px">📍 '+c.dist+'</div><div style="display:flex;gap:5px"><a href="https://www.google.com/maps?q='+lat+','+lng+'" target="_blank" style="flex:1;padding:6px;background:#1a73e8;color:#fff;text-align:center;border-radius:6px;text-decoration:none;font-size:0.72rem;font-weight:700">🗺️ Maps</a><a href="https://waze.com/ul?ll='+lat+','+lng+'&navigate=yes" target="_blank" style="flex:1;padding:6px;background:#00bcd4;color:#fff;text-align:center;border-radius:6px;text-decoration:none;font-size:0.72rem;font-weight:700">🚗 Waze</a></div></div>';L.marker([lat,lng],{icon:icon}).bindPopup(popup).addTo(mapaL);mapaMarkers.push([lat,lng]);return[lat,lng];}
 async function geocode(c){var dir=(c.dir||'').trim();if(!dir)return null;if(esC(dir)){var p=dir.split(',');return{lat:parseFloat(p[0]),lng:parseFloat(p[1])};}var key=dir+','+(c.dist||'');if(geoCache[key])return geoCache[key];try{var q=dir+(c.dist?', '+c.dist:'')+', Lima, Peru';var resp=await fetch('https://nominatim.openstreetmap.org/search?format=json&q='+encodeURIComponent(q)+'&limit=1&countrycodes=pe',{headers:{'Accept-Language':'es'}});var data=await resp.json();if(data&&data.length>0){var r={lat:parseFloat(data[0].lat),lng:parseFloat(data[0].lon)};geoCache[key]=r;return r;}}catch(e){}return null;}
@@ -2231,18 +2476,6 @@ function abrirTodosEnMaps(){if(!D.cl.length)return;var pts=D.cl.filter(function(
 // ║  Funciones: dlXls (Excel del día), dlCircuit, dlBackup       ║
 // ║             xlsHist, xlsData, impBackup (importar JSON)      ║
 // ║  Detección: esWebView() — Median, GoNative, Capacitor y WebView ║
-function esCapacitor(){
-  return typeof window.Capacitor !== 'undefined' && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
-}
-function esWebView(){
-  var ua=navigator.userAgent||'';
-  return ua.toLowerCase().includes('gonative')
-    ||ua.toLowerCase().includes('median')
-    ||(ua.includes('Android')&&ua.includes('wv'))
-    ||typeof window.gonative!=='undefined'
-    ||typeof window.median!=='undefined'
-    ||esCapacitor();
-}
 
 // ── ODÓMETRO GPS ──────────────────────────────────────────────
 var _odo = {
@@ -2344,8 +2577,6 @@ function actualizarUIKm(speed){
 // Iniciar odómetro al cargar
 setTimeout(initOdometro, 1000);
 
-// ── CRONÓMETRO DE RUTA ────────────────────────────────────────
-var _crono={activo:false,inicio:null,acumulado:0,intervalo:null};
 function _cronoTick(){
   var total=_crono.acumulado+(Date.now()-_crono.inicio);
   var h=Math.floor(total/3600000),m=Math.floor((total%3600000)/60000),s=Math.floor((total%60000)/1000);
@@ -2359,12 +2590,16 @@ function togCronometro(){
     if(label)label.textContent='⏱ PAUSA';
     if(wrap){wrap.style.background='rgba(16,185,129,0.22)';wrap.style.borderColor='rgba(16,185,129,0.6)';}
     mostrarToast('⏱️ Cronómetro iniciado');
+    // Iniciar notificación de pausa si está configurada
+    _notif.iniciarPausa();
   } else {
     _crono.acumulado+=Date.now()-_crono.inicio;_crono.activo=false;clearInterval(_crono.intervalo);
     if(label)label.textContent='▶ CONT.';
     if(disp)disp.style.color='var(--accent-warn)';
     if(wrap){wrap.style.background='rgba(245,158,11,0.12)';wrap.style.borderColor='rgba(245,158,11,0.4)';}
     mostrarToast('⏸️ Pausado — toca para continuar');
+    // Cancelar notificación de pausa al pausar
+    _notif.cancelarPausa();
   }
 }
 function resetCronometro(){
@@ -2373,6 +2608,251 @@ function resetCronometro(){
   if(disp){disp.textContent='00:00';disp.style.color='var(--accent-green)';}
   if(label)label.textContent='RUTA';
   if(wrap){wrap.style.background='rgba(16,185,129,0.12)';wrap.style.borderColor='rgba(16,185,129,0.3)';}
+  // Cancelar notificaciones de pausa al cerrar ruta
+  _notif.cancelarPausa();
+}
+
+// ── NOTIFICACIONES LOCAL ──────────────────────────────────────
+// Config guardada en localStorage: notif_config = {pausa:true,pausaH:2,hidrat:true,hidratMin:45}
+var _notif = {
+  pausaTimer: null,
+  hidratTimer: null,
+  cfg: null,
+
+  getCfg: function(){
+    if(!this.cfg){
+      var raw = localStorage.getItem('notif_config');
+      this.cfg = raw ? JSON.parse(raw) : {pausa:false,pausaH:2,hidrat:false,hidratMin:45};
+    }
+    return this.cfg;
+  },
+
+  saveCfg: function(c){
+    this.cfg = c;
+    localStorage.setItem('notif_config', JSON.stringify(c));
+  },
+
+  // Pedir permiso de notificaciones (web)
+  pedirPermiso: function(cb){
+    if(typeof Notification !== 'undefined' && Notification.permission === 'default'){
+      Notification.requestPermission().then(function(p){ if(cb) cb(p==='granted'); });
+    } else {
+      if(cb) cb(true);
+    }
+  },
+
+  // Mostrar notificación nativa o web
+  mostrar: function(titulo, cuerpo, icono){
+    // Plugin Capacitor LocalNotifications
+    var LN = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications;
+    if(LN){
+      LN.schedule({notifications:[{
+        title: titulo, body: cuerpo, id: Math.floor(Math.random()*9000)+1000,
+        schedule:{at:new Date(Date.now()+500)}, sound: null, smallIcon:'ic_stat_icon_config_sample'
+      }]}).catch(function(){});
+    } else if(typeof Notification !== 'undefined' && Notification.permission === 'granted'){
+      new Notification(titulo, {body: cuerpo, icon: icono||'🛵'});
+    } else {
+      // Fallback visual toast largo
+      mostrarToastLargo(titulo+'\n'+cuerpo);
+    }
+  },
+
+  // Iniciar recordatorio de pausa (al iniciar cronómetro)
+  iniciarPausa: function(){
+    this.cancelarPausa();
+    var cfg = this.getCfg();
+    if(!cfg.pausa) return;
+    var ms = (cfg.pausaH || 2) * 60 * 60 * 1000;
+    var self = this;
+    this.pausaTimer = setInterval(function(){
+      var total = _crono.acumulado + ((_crono.activo && _crono.inicio) ? Date.now()-_crono.inicio : 0);
+      var horas = Math.floor(total/3600000);
+      self.mostrar('🛵 RiderTrack — Pausa','Llevas '+horas+' hora'+(horas===1?'':'s')+' en ruta — descansa 10 minutos');
+    }, ms);
+  },
+
+  cancelarPausa: function(){
+    if(this.pausaTimer){ clearInterval(this.pausaTimer); this.pausaTimer=null; }
+  },
+
+  // Iniciar recordatorio de hidratación (independiente)
+  iniciarHidrat: function(){
+    this.cancelarHidrat();
+    var cfg = this.getCfg();
+    if(!cfg.hidrat) return;
+    var ms = (cfg.hidratMin || 45) * 60 * 1000;
+    var self = this;
+    this.hidratTimer = setInterval(function(){
+      self.mostrar('💧 RiderTrack — Hidratación','¡Hidrátate antes del próximo pedido!');
+    }, ms);
+  },
+
+  cancelarHidrat: function(){
+    if(this.hidratTimer){ clearInterval(this.hidratTimer); this.hidratTimer=null; }
+  }
+};
+
+// Toast largo para notificaciones fallback
+
+// Arrancar hidratación al cargar si estaba activa
+(function(){
+  var cfg = JSON.parse(localStorage.getItem('notif_config')||'{}');
+  if(cfg.hidrat) setTimeout(function(){ _notif.iniciarHidrat(); }, 2000);
+})();
+
+// Modal de configuración de notificaciones
+function abrirConfigNotif(){
+  var cfg = _notif.getCfg();
+  var prev = document.getElementById('modal-notif');
+  if(prev) prev.remove();
+
+  var ov = document.createElement('div');
+  ov.id = 'modal-notif';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:8500;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)';
+
+  var panel = document.createElement('div');
+  panel.style.cssText = 'background:var(--s1,#1A1B26);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 18px 120px;border-top:3px solid var(--ac,#7B2CBF);max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain';
+
+  // Título
+  var tit = document.createElement('div');
+  tit.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px';
+  tit.innerHTML = '<div><div style="font-size:1rem;font-weight:800;color:var(--text,#E2E8F0)">🔔 Recordatorios</div>'+
+    '<div style="font-size:0.65rem;color:var(--muted,#A5A6C4);margin-top:2px">Pausa de ruta e hidratación</div></div>'+
+    '<button onclick="cerrarConfigNotif()" '+
+    'style="background:rgba(255,255,255,0.1);border:none;color:#A5A6C4;border-radius:50%;width:30px;height:30px;font-size:0.9rem;cursor:pointer">✕</button>';
+  panel.appendChild(tit);
+
+  function fila(icono, titulo, descripcion, idToggle, checked, contenidoExtra){
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'background:var(--s2,#2B2D3A);border-radius:14px;padding:14px 16px;margin-bottom:12px;border:1px solid var(--border,rgba(255,255,255,0.06))';
+    var header = document.createElement('div');
+    header.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:8px';
+    header.innerHTML = '<span style="font-size:1.4rem">'+icono+'</span>'+
+      '<div style="flex:1"><div style="font-size:0.88rem;font-weight:700;color:var(--text,#E2E8F0)">'+titulo+'</div>'+
+      '<div style="font-size:0.67rem;color:var(--muted,#A5A6C4)">'+descripcion+'</div></div>'+
+      '<label style="position:relative;width:44px;height:24px;flex-shrink:0;cursor:pointer">'+
+        '<input type="checkbox" id="'+idToggle+'" '+(checked?'checked':'')+' style="opacity:0;width:0;height:0" onchange="notifToggleUI(\''+idToggle+'\')">'+
+        '<span id="track-'+idToggle+'" style="position:absolute;inset:0;background:'+(checked?'var(--ac,#7B2CBF)':'rgba(255,255,255,0.15)')+';border-radius:12px;transition:0.25s">'+
+          '<span id="knob-'+idToggle+'" style="position:absolute;top:2px;left:'+(checked?'22px':'2px')+';width:20px;height:20px;background:#fff;border-radius:50%;transition:0.25s"></span>'+
+        '</span></label>';
+    wrap.appendChild(header);
+    if(contenidoExtra){
+      var ext = document.createElement('div');
+      ext.id = 'ext-'+idToggle;
+      ext.style.cssText = 'display:'+(checked?'block':'none');
+      ext.appendChild(contenidoExtra);
+      wrap.appendChild(ext);
+    }
+    return wrap;
+  }
+
+  // Sección Pausa
+  var pausaExtra = document.createElement('div');
+  pausaExtra.style.cssText = 'padding-top:4px;border-top:1px solid rgba(255,255,255,0.06)';
+  pausaExtra.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-top:10px">'+
+    '<div style="font-size:0.78rem;color:var(--text,#E2E8F0);flex:1">Recordar cada cuántas horas:</div>'+
+    '<div style="display:flex;align-items:center;gap:6px">'+
+      '<button onclick="notifAjustar(\'pausaH\',-1)" style="width:28px;height:28px;background:rgba(255,255,255,0.1);border:none;border-radius:7px;color:#E2E8F0;cursor:pointer;font-size:1rem">−</button>'+
+      '<span id="val-pausaH" style="font-size:1rem;font-weight:800;color:var(--ac,#7B2CBF);min-width:20px;text-align:center">'+(cfg.pausaH||2)+'</span>'+
+      '<button onclick="notifAjustar(\'pausaH\',1)" style="width:28px;height:28px;background:rgba(255,255,255,0.1);border:none;border-radius:7px;color:#E2E8F0;cursor:pointer;font-size:1rem">+</button>'+
+      '<span style="font-size:0.7rem;color:var(--muted,#A5A6C4)">h</span>'+
+    '</div></div>';
+  panel.appendChild(fila('🛵','Recordatorio de pausa',
+    'Se activa al iniciar el cronómetro de ruta','chk-pausa',cfg.pausa,pausaExtra));
+
+  // Sección Hidratación
+  var hidratExtra = document.createElement('div');
+  hidratExtra.style.cssText = 'padding-top:4px;border-top:1px solid rgba(255,255,255,0.06)';
+  hidratExtra.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-top:10px">'+
+    '<div style="font-size:0.78rem;color:var(--text,#E2E8F0);flex:1">Recordar cada cuántos minutos:</div>'+
+    '<div style="display:flex;align-items:center;gap:6px">'+
+      '<button onclick="notifAjustar(\'hidratMin\',-5)" style="width:28px;height:28px;background:rgba(255,255,255,0.1);border:none;border-radius:7px;color:#E2E8F0;cursor:pointer;font-size:1rem">−</button>'+
+      '<span id="val-hidratMin" style="font-size:1rem;font-weight:800;color:var(--ac,#7B2CBF);min-width:28px;text-align:center">'+(cfg.hidratMin||45)+'</span>'+
+      '<button onclick="notifAjustar(\'hidratMin\',5)" style="width:28px;height:28px;background:rgba(255,255,255,0.1);border:none;border-radius:7px;color:#E2E8F0;cursor:pointer;font-size:1rem">+</button>'+
+      '<span style="font-size:0.7rem;color:var(--muted,#A5A6C4)">min</span>'+
+    '</div></div>';
+  panel.appendChild(fila('💧','Recordatorio de hidratación',
+    'Independiente del cronómetro, siempre activo','chk-hidrat',cfg.hidrat,hidratExtra));
+
+  // Botón guardar
+  var btnGuardar = document.createElement('button');
+  btnGuardar.style.cssText = 'width:100%;padding:14px;border-radius:14px;background:linear-gradient(135deg,var(--ac,#7B2CBF),var(--ac2,#5a189a));border:none;color:#fff;font-weight:800;font-size:0.95rem;cursor:pointer;margin-top:6px';
+  btnGuardar.textContent = '💾 Guardar configuración';
+  btnGuardar.onclick = guardarConfigNotif;
+  panel.appendChild(btnGuardar);
+
+  ov.appendChild(panel);
+  var _scrollY = window.scrollY || 0;
+  _notifScrollY = _scrollY;
+  ov.onclick = function(e){
+    if(e.target===ov){
+      ov.remove();
+      document.body.style.position='';
+      document.body.style.top='';
+      document.body.style.width='';
+      window.scrollTo(0, _scrollY);
+    }
+  };
+  document.body.style.position='fixed';
+  document.body.style.top='-'+_scrollY+'px';
+  document.body.style.width='100%';
+  document.body.appendChild(ov);
+}
+
+
+function cerrarConfigNotif(){
+  var ov = document.getElementById('modal-notif');
+  if(ov) ov.remove();
+  document.body.style.position='';
+  document.body.style.top='';
+  document.body.style.width='';
+  window.scrollTo(0, _notifScrollY);
+}
+
+function notifToggleUI(id){
+  var chk = document.getElementById(id);
+  var track = document.getElementById('track-'+id);
+  var knob = document.getElementById('knob-'+id);
+  var ext = document.getElementById('ext-'+id);
+  if(!chk) return;
+  var checked = chk.checked;
+  if(track) track.style.background = checked ? 'var(--ac,#7B2CBF)' : 'rgba(255,255,255,0.15)';
+  if(knob) knob.style.left = checked ? '22px' : '2px';
+  if(ext) ext.style.display = checked ? 'block' : 'none';
+}
+
+function notifAjustar(campo, delta){
+  var cfg = _notif.getCfg();
+  var limites = {pausaH:{min:1,max:8}, hidratMin:{min:15,max:120}};
+  var lim = limites[campo] || {min:1,max:99};
+  cfg[campo] = Math.max(lim.min, Math.min(lim.max, (cfg[campo]||0) + delta));
+  _notif.saveCfg(cfg);
+  var span = document.getElementById('val-'+campo);
+  if(span) span.textContent = cfg[campo];
+}
+
+function guardarConfigNotif(){
+  var cfg = _notif.getCfg();
+  var chkP = document.getElementById('chk-pausa');
+  var chkH = document.getElementById('chk-hidrat');
+  cfg.pausa = chkP ? chkP.checked : cfg.pausa;
+  cfg.hidrat = chkH ? chkH.checked : cfg.hidrat;
+  _notif.saveCfg(cfg);
+
+  // Re-iniciar hidratación con nueva config
+  _notif.cancelarHidrat();
+  if(cfg.hidrat) _notif.iniciarHidrat();
+
+  // Si cronómetro activo → re-iniciar pausa
+  _notif.cancelarPausa();
+  if(_crono.activo && cfg.pausa) _notif.iniciarPausa();
+
+  var ov = document.getElementById('modal-notif');
+  if(ov) cerrarConfigNotif();
+  mostrarToast('✅ Recordatorios guardados');
+  // Pedir permiso de notificaciones si no se tiene
+  _notif.pedirPermiso(function(){});
 }
 
 // ── Manejo del botón físico RETROCEDER en Capacitor ──────────────
@@ -2499,16 +2979,18 @@ function xlsHist(id){
   if(!h.cl||!h.cl.length){alert('Esta ruta no tiene clientes guardados para exportar.');return;}
   xlsData(h.cl,h.fecha);
 }
+// ── Helpers Excel (compartidos por xlsData y generarExcelBuffer) ──
+function _xlsFill(hex){return {type:'pattern',pattern:'solid',fgColor:{argb:'FF'+hex}};}
+function _xlsBorde(c){var s={style:'thin',color:{argb:'FF'+c}};return {top:s,bottom:s,left:s,right:s};}
+function _xlsFB(hex,sz){return {bold:true,color:{argb:'FF'+hex},size:sz||10,name:'Calibri'};}
+function _xlsFN(hex,sz){return {color:{argb:'FF'+hex},size:sz||10,name:'Calibri'};}
 function xlsData(cl,fn){
   if(!cl||!cl.length){alert('No hay clientes');return;}
   if(typeof ExcelJS==='undefined'){alert('ExcelJS cargando, intenta en 2 segundos');return;}
   var wb=new ExcelJS.Workbook();wb.creator='RiderTrack';
   var ws=wb.addWorksheet('Entregas',{views:[{state:'frozen',ySplit:3}]});
   var C={titBg:'1A237E',hdrBg:'283593',loTuyoBg:'1B5E20',totTuyoBg:'F57F17',empresaBg:'0D47A1',fallidoBg:'B71C1C',granTotBg:'263238',alt1:'E8F5E9',alt2:'C8E6C9',empRow:'E3F2FD',fal1:'FFEBEE',fal2:'FFCDD2',fg:'FFFFFF',dark:'000000',border:'BDBDBD'};
-  function fill(hex){return {type:'pattern',pattern:'solid',fgColor:{argb:'FF'+hex}};}
-  function borde(c){var s={style:'thin',color:{argb:'FF'+c}};return {top:s,bottom:s,left:s,right:s};}
-  function fB(hex,sz){return {bold:true,color:{argb:'FF'+hex},size:sz||10,name:'Calibri'};}
-  function fN(hex,sz){return {color:{argb:'FF'+hex},size:sz||10,name:'Calibri'};}
+  var fill=_xlsFill,borde=_xlsBorde,fB=_xlsFB,fN=_xlsFN;
   ws.columns=[{width:4},{width:22},{width:30},{width:14},{width:13},{width:28},{width:9},{width:10},{width:18},{width:8},{width:25}];
   var hdrs=['N°','NOMBRE CLIENTE','DIRECCIÓN','DISTRITO','CELULAR','PRODUCTO','PRECIO','A COBRAR','FORMA DE PAGO','HORA','NOTA'];
   // Título
@@ -2692,7 +3174,6 @@ function abrirArchivoExcel(){
   cargarListaExcels();
 }
 
-var excelsNube=[];
 
 function cargarListaExcels(){
   if(!db||!fbUserId){
@@ -2795,7 +3276,8 @@ function dlCircuit(){
     descargaDirecta(blob,nom);
   }
 }
-function dlBackupDirecto(){
+// ── BACKUP JSON ── dlBackup usa share, dlBackupDirecto usa descarga directa
+function _buildBackupBlob(){
   var d={
     v:4, fecha:new Date().toISOString(),
     cl:D.cl, hist:D.hist, bib:D.bib, reprog:D.reprog,
@@ -2804,22 +3286,23 @@ function dlBackupDirecto(){
     myYape:D.myYape, empYape:D.empYape,
     qr_yape_nom:D.qr_yape_nom, qr_plin_nom:D.qr_plin_nom,
     ctaBCP:D.ctaBCP, ctaIBK:D.ctaIBK, ctaBBVA:D.ctaBBVA, ctaOtra:D.ctaOtra,
-    foto:D.foto||'',
-    ts_config:localStorage.getItem('ts_config')||'',
+    foto:D.foto||'', ts_config:localStorage.getItem('ts_config')||''
   };
-  var blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
   var nom='backup_ridertrack_'+new Date().toLocaleDateString('es-PE').replace(/\//g,'-')+'.json';
-  var file=new File([blob],nom,{type:blob.type});
+  return {blob:new Blob([JSON.stringify(d,null,2)],{type:'application/json'}),nom:nom};
+}
+function dlBackupDirecto(){
+  var r=_buildBackupBlob();
+  var file=new File([r.blob],r.nom,{type:r.blob.type});
   if(navigator.canShare&&navigator.canShare({files:[file]})){
     navigator.share({files:[file],title:'RiderTrack Backup',text:'Backup completo RiderTrack'})
-      .catch(function(){descargaDirecta(blob,nom);});
-  } else { descargaDirecta(blob,nom); }
+      .catch(function(){descargaDirecta(r.blob,r.nom);});
+  } else { descargaDirecta(r.blob,r.nom); }
 }
 
 function dlXlsDirecto(){xlsDataDirecto(D.cl,new Date().toLocaleDateString('es-PE'));}
 function xlsDataDirecto(cl,fn){
   if(!cl||!cl.length){alert('No hay clientes');return;}
-  // Reusar xlsData pero forzar descarga directa sin share
   var _share = window.compartirArchivo;
   window.compartirArchivo = function(blob,nom){descargaDirecta(blob,nom);};
   xlsData(cl,fn);
@@ -2827,31 +3310,12 @@ function xlsDataDirecto(cl,fn){
 }
 
 function dlBackup(){
-  var d={
-    v:4,
-    fecha:new Date().toISOString(),
-    // Clientes e historial
-    cl:D.cl, hist:D.hist, bib:D.bib, reprog:D.reprog,
-    // Mensajes
-    msg:D.msg, msgWA:D.msgWA,
-    // Configuración visual
-    light:D.light, ac:D.ac, ac2:D.ac2,
-    // Pagos
-    myYape:D.myYape, empYape:D.empYape,
-    qr_yape_nom:D.qr_yape_nom, qr_plin_nom:D.qr_plin_nom,
-    ctaBCP:D.ctaBCP, ctaIBK:D.ctaIBK, ctaBBVA:D.ctaBBVA, ctaOtra:D.ctaOtra,
-    // Foto de perfil
-    foto:D.foto||'',
-    // Tema y Odoo
-    ts_config:localStorage.getItem('ts_config')||'',
-  };
-  var blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
-  var nom='backup_ridertrack_'+new Date().toLocaleDateString('es-PE').replace(/\//g,'-')+'.json';
-  var file=new File([blob],nom,{type:blob.type});
+  var r=_buildBackupBlob();
+  var file=new File([r.blob],r.nom,{type:r.blob.type});
   if(navigator.canShare&&navigator.canShare({files:[file]})){
     navigator.share({files:[file],title:'RiderTrack Backup',text:'Backup completo RiderTrack'})
-      .catch(function(){ descargaDirecta(blob,nom); });
-  } else { descargaDirecta(blob,nom); }
+      .catch(function(){ descargaDirecta(r.blob,r.nom); });
+  } else { descargaDirecta(r.blob,r.nom); }
 }
 function impBackup(inp){
   var f=inp.files[0];if(!f)return;
@@ -3015,26 +3479,6 @@ function _compartirFallback(src, msg, metodo){
   window.open(url, '_blank');
 }
 
-function mostrarShareQR(src,msg,metodo){
-  var ov=document.createElement('div');
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:flex-end;justify-content:center;overflow:hidden';
-  document.body.style.overflow='hidden';
-  ov.onclick=function(e){if(e.target===ov){ov.remove();document.body.style.overflow='auto';}};
-  var panel=document.createElement('div');
-  panel.style.cssText='background:var(--s1);border-radius:20px 20px 0 0;padding:20px 18px 140px;width:100%;max-width:420px;border-top:1px solid var(--border);max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain';
-  var waUrl='https://wa.me/?text='+encodeURIComponent(msg);
-  var tipo=metodo.toLowerCase();
-  var h='<div style="font-size:1rem;font-weight:700;color:var(--ac);margin-bottom:14px">Compartir QR '+metodo+'</div>';
-  h+='<div style="text-align:center;margin-bottom:16px"><img src="'+src+'" style="width:140px;height:140px;object-fit:contain;border-radius:12px;background:#fff;padding:8px"></div>';
-  h+='<div style="font-size:0.72rem;color:var(--muted);margin-bottom:14px;text-align:center">Guarda la imagen y enviala por WhatsApp</div>';
-  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
-  h+='<button onclick="descargarQRImg(&quot;'+tipo+'&quot;)" style="padding:12px;background:var(--s2);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-weight:700;cursor:pointer;font-size:0.8rem">Guardar imagen</button>';
-  h+='<a href="'+waUrl+'" target="_blank" style="padding:12px;background:linear-gradient(135deg,#075e54,#128c7e);border-radius:10px;color:#fff;font-weight:700;font-size:0.8rem;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center">Enviar texto WA</a>';
-  h+='</div>';
-  h+='<button onclick="this.parentElement.parentElement.remove();document.body.style.overflow=\'auto\'" style="width:100%;margin-top:10px;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--muted);cursor:pointer;font-size:0.78rem">Cancelar</button>';
-  panel.innerHTML=h;
-  ov.appendChild(panel);document.body.appendChild(ov);
-}
 
 function descargarQRImg(metodo){
   var tipo=metodo.toLowerCase();
@@ -3064,7 +3508,6 @@ function ampQR(tipo){
 // ║  Biblioteca de pedidos fallidos/reprogramados                ║
 // ║  Auto-guarda al marcar fallo · expira 7 días · reagenda      ║
 
-var REPROG_DIAS = 7; // días antes de expirar
 
 // Inicializar array si no existe
 if(!D.reprog) D.reprog = [];
@@ -3290,20 +3733,10 @@ function rpBorrarSeleccionados(){
   sv(); rReprog(); rpUpdBadge();
 }
 
-function mostrarToast(msg){
-  var t=document.createElement('div');
-  t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1E1E24;color:#fff;padding:10px 20px;border-radius:20px;font-size:0.82rem;font-weight:700;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);white-space:nowrap;animation:fadeIn 0.3s ease';
-  t.textContent=msg;
-  document.body.appendChild(t);
-  setTimeout(function(){t.remove();},2800);
-}
 
 // ║  SECCIÓN 17: APPS EXTERNAS                                   ║
 // ║  abrirClientes() → abre clientetrack.html (mismo dominio)    ║
 // ║  abrirMoto() → abre moto.html                                ║
-// URLs de las apps TrackVerse en Netlify
-var URL_CLIENTETRACK = 'clientetrack.html'; // mismo dominio Netlify → localStorage compartido
-var URL_MOTO         = 'moto.html'; // mismo sitio Netlify RiderTrack
 
 function abrirClientes(){
   cerrarMenu();
@@ -3328,7 +3761,6 @@ function abrirMoto(){
 // ║  THEME STUDIO                                                ║
 // ║  Luminosidad · Temas · Estilos · Fondo Animado · Fuente      ║
 
-var TS_DEFAULTS = {lum:'deep',tema:'purple',estilo:'elegante',fondo:'ninguno',compacto:false,fontSize:100,customColor:'',glassOpacity:0.65,fuente:'outfit',radio:'redondeado',anim:'normal'};
 
 function tsGet(){ return JSON.parse(localStorage.getItem('ts_config')||'{}'); }
 function tsSave(cfg){ localStorage.setItem('ts_config',JSON.stringify(cfg)); }
@@ -3371,7 +3803,6 @@ function tsApply(cfg){
   tsAplicarFondo(cfg.fondo, cfg);
 }
 
-var _tsAnimId = null;
 
 function tsAplicarFondo(tipo, cfg){
   // Cancelar animación anterior
@@ -3742,27 +4173,6 @@ function render(){rLista();rRes();rHist();rMsgs();rNav();rBib();rReprog();rpUpdB
 
 render();
 
-// ── Función de voz — llamada por botón 🔊 ──
-function hablarResumen(){
-  if(!window.speechSynthesis) return;
-  if(!D.cl||!D.cl.length){ mostrarToast('No hay pedidos cargados'); return; }
-  var pend=D.cl.filter(function(c){return c.st==='pendiente'||!c.st;});
-  if(!pend.length){ mostrarToast('No hay pedidos pendientes'); return; }
-  var mz=pend.filter(function(c){return c.tipDir==='mz';}).length;
-  var dist='';
-  for(var i=0;i<pend.length;i++){if(pend[i].dist&&pend[i].dist.trim()){dist=pend[i].dist.trim();break;}}
-  var msg='Tienes '+pend.length+(pend.length===1?' pedido':' pedidos')+' pendientes. ';
-  if(mz>0){msg+=mz+(mz===1?' es manzana.':' son manzanas.')+' ';}
-  if(dist){msg+='Primer distrito: '+dist+'.';}
-  var u=new SpeechSynthesisUtterance(msg);
-  u.lang='es-PE';u.rate=0.95;u.pitch=1;u.volume=1;
-  // En Capacitor WebView las voces pueden no cargar — hablar sin voz específica si no hay voces
-  var v=window.speechSynthesis.getVoices();
-  var ve=v.find(function(x){return x.lang.startsWith('es');});
-  if(ve)u.voice=ve;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(u);
-}
 
 // ║  VOZ AL ABRIR — RiderTrack                                   ║
 // ║  Lee resumen de pedidos al iniciar la app                    ║
@@ -3850,30 +4260,6 @@ setTimeout(function(){
   mostrarResumenImport(D.cl.length, mz, ref, ok);
 }, 5500); // Esperar que termine el splash (4s) antes de mostrar
 
-// ── CORRECTOR DE FECHAS DEL HISTORIAL ──────────────────────────
-function corregirFechasHistorial(){
-  if(!D.hist||!D.hist.length){mostrarToast('No hay historial');return;}
-  var corregidos=0;
-  D.hist.forEach(function(h){
-    if(!h.fechaId) return;
-    // Detectar si la fecha tiene formato YYYY-MM-DD
-    var m=h.fechaId.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if(!m) return;
-    // Restar un día
-    var d=new Date(h.fechaId+'T12:00:00'); // Mediodía para evitar problemas de TZ
-    d.setDate(d.getDate()-1);
-    var nueva=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    h.fechaId=nueva;
-    // Actualizar fecha legible también
-    var dObj=new Date(nueva+'T12:00:00');
-    h.fecha=dObj.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'});
-    h.fechaL=dObj.toLocaleDateString('es-PE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
-    corregidos++;
-  });
-  sv();
-  render();
-  mostrarToast('✅ '+corregidos+' rutas corregidas');
-}
 
 </script>
 </div><!-- /app-container -->
@@ -3916,6 +4302,76 @@ function borrarApiKey(){
 }
 // Cerrar modal tocando fuera
 document.getElementById('modal-apikey').addEventListener('click', function(e){ if(e.target===this) cerrarApiKey(); });
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODAL MENSAJE WHATSAPP
+     ═══════════════════════════════════════════════════════════ -->
+<div id="modal-msgwa" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);align-items:flex-end;justify-content:center;">
+  <div style="background:var(--s1,#1A1B26);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:20px 18px 40px;border:1px solid rgba(255,255,255,0.08);border-bottom:none;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div style="font-size:1rem;font-weight:800;color:var(--text,#E8EAF0);">💬 Mensaje WhatsApp</div>
+      <button onclick="cerrarMsgWA()" style="background:rgba(255,255,255,0.1);border:none;color:var(--text,#E8EAF0);border-radius:50%;width:30px;height:30px;font-size:0.9rem;cursor:pointer;">✕</button>
+    </div>
+    <div style="font-size:0.72rem;color:var(--muted,#7A7C85);margin-bottom:14px;">Se envía al cliente cuando tocas el botón WhatsApp en cada pedido.</div>
+    <textarea id="msgWA" rows="5"
+      onkeyup="_guardarPosWA(this)" onmouseup="_guardarPosWA(this)" onclick="_guardarPosWA(this)" oninput="_guardarPosWA(this);_prevWA()"
+      style="width:100%;background:rgba(255,255,255,0.05);border:1.5px solid rgba(37,211,102,0.3);border-radius:14px;padding:12px 14px;color:var(--text,#E8EAF0);font-family:'Outfit',sans-serif;font-size:0.88rem;outline:none;resize:vertical;line-height:1.5;"
+      placeholder="Hola {nombre}, ya voy con tu pedido..."></textarea>
+    <div style="margin:10px 0 14px;">
+      <div style="font-size:0.62rem;color:var(--muted,#7A7C85);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:7px;">Variables — toca para insertar</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;">
+        <span class="tcw" onclick="insTagWA('{nombre}')">👤 nombre</span>
+        <span class="tcw" onclick="insTagWA('{producto}')">📦 producto</span>
+        <span class="tcw" onclick="insTagWA('{precio}')">💰 precio</span>
+        <span class="tcw" onclick="insTagWA('{cobrar}')">💵 cobrar</span>
+        <span class="tcw" onclick="insTagWA('{direccion}')">📍 dirección</span>
+        <span class="tcw" onclick="insTagWA('{distrito}')">🗺 distrito</span>
+        <span class="tcw" onclick="insTagWA('{yape}')">📲 yape</span>
+        <span class="tcw" onclick="insTagWA('{hora_inicio}')">🕐 hora inicio</span>
+        <span class="tcw" onclick="insTagWA('{hora_fin}')">🕑 hora fin</span>
+      </div>
+    </div>
+    <div style="background:rgba(37,211,102,0.06);border:1px solid rgba(37,211,102,0.2);border-radius:12px;padding:11px 13px;margin-bottom:14px;">
+      <div style="font-size:0.62rem;color:#25d366;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px;">Vista previa</div>
+      <div id="msgwa-preview" style="font-size:0.8rem;color:var(--text,#E8EAF0);line-height:1.5;white-space:pre-wrap;word-break:break-word;"></div>
+    </div>
+    <button onclick="saveMsgWA()" style="width:100%;padding:13px;border-radius:14px;background:linear-gradient(135deg,#25d366,#128c7e);color:#fff;border:none;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:'Outfit',sans-serif;">💾 Guardar mensaje</button>
+    <button onclick="resetMsgWA()" style="width:100%;padding:10px;border-radius:12px;background:none;border:1px solid rgba(239,68,68,0.3);color:#f87171;font-size:0.78rem;cursor:pointer;margin-top:8px;font-family:'Outfit',sans-serif;">↩️ Restaurar por defecto</button>
+  </div>
+</div>
+<script>
+var _msgWADef='Hola {nombre}, soy Rudy de delivery. Ya voy con tu pedido de {producto} (S/{cobrar}). Ten listo el pago. Yape: {yape}';
+var _waPos=0, _waPosE=0;
+function _guardarPosWA(ta){ _waPos=ta.selectionStart; _waPosE=ta.selectionEnd; }
+function abrirMsgWA(){
+  var modal=document.getElementById('modal-msgwa');if(!modal)return;
+  modal.style.display='flex';document.body.style.overflow='hidden';
+  var ta=document.getElementById('msgWA');
+  if(ta){ ta.value=D.msgWA||_msgWADef; _waPos=ta.value.length; _waPosE=_waPos; _prevWA(); }
+}
+function cerrarMsgWA(){
+  var m=document.getElementById('modal-msgwa');if(m)m.style.display='none';
+  document.body.style.overflow='auto';
+}
+function _prevWA(){
+  var ta=document.getElementById('msgWA'),prev=document.getElementById('msgwa-preview');
+  if(!ta||!prev)return;
+  prev.textContent=ta.value
+    .replace(/\{nombre\}/g,'Carlos').replace(/\{producto\}/g,'Zapatillas')
+    .replace(/\{precio\}/g,'150').replace(/\{cobrar\}/g,'150')
+    .replace(/\{direccion\}/g,'Jr. Las Flores 123').replace(/\{distrito\}/g,'Surco')
+    .replace(/\{yape\}/g,D.myYape||'999888777')
+    .replace(/\{yape_empresa\}/g,D.empYape||'999000111')
+    .replace(/\{hora_inicio\}/g,'09:00').replace(/\{hora_fin\}/g,'13:00')
+    .replace(/\{bcp\}/g,D.ctaBCP||'—').replace(/\{interbank\}/g,D.ctaIBK||'—')
+    .replace(/\{bbva\}/g,D.ctaBBVA||'—');
+}
+function resetMsgWA(){
+  var ta=document.getElementById('msgWA');if(!ta)return;
+  ta.value=_msgWADef;_waPos=ta.value.length;_waPosE=_waPos;_prevWA();
+}
+document.getElementById('modal-msgwa').addEventListener('click',function(e){if(e.target===this)cerrarMsgWA();});
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════
