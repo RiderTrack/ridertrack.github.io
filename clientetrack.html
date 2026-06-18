@@ -917,6 +917,11 @@
       </div>
       <div class="topbar-right">
         <span class="time-display" id="time-display">--:--:--</span>
+        <!-- Indicador Firebase -->
+        <div id="ct-fb-status" style="display:flex;align-items:center;gap:4px;font-size:0.7rem;font-weight:700;color:var(--text-secondary);padding:4px 8px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px" title="Estado Firebase">
+          <span id="ct-fb-icon">☁️</span>
+          <span id="ct-fb-txt" style="white-space:nowrap">Sin conexión</span>
+        </div>
         <!-- Config -->
         <button onclick="document.querySelectorAll('.view-content').forEach(function(v){v.classList.remove('active');}); var cfg=document.getElementById('view-config'); if(cfg) cfg.classList.add('active');" style="background:none;border:none;cursor:pointer;font-size:1.1rem;padding:4px" title="Configuración">⚙️</button>
         <!-- Slider Dark/Light Mode -->
@@ -939,6 +944,12 @@
       <div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.25);">
         <span style="font-size: 0.85rem; font-weight: 600;">Sincronización de Envíos</span>
         <button class="btn btn-qr" onclick="syncRiderTrack()" style="padding: 8px 14px; font-size: 0.75rem;">🔄 Sincronizar RiderTrack</button>
+      </div>
+
+      <!-- 📊 ESTADÍSTICAS HISTÓRICAS -->
+      <div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(124,58,237,0.04)); border-color: rgba(124,58,237,0.25);">
+        <span style="font-size: 0.85rem; font-weight: 600;">📊 Estadísticas Históricas</span>
+        <button class="btn" onclick="abrirEstadisticasCT()" style="padding: 8px 14px; font-size: 0.75rem; background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(124,58,237,0.08)); border: 1px solid rgba(124,58,237,0.3); color: #a78bfa; font-weight: 700;">📊 Ver historial</button>
       </div>
       
       <!-- RESUMEN DEL DÍA -->
@@ -1026,6 +1037,7 @@
         <div class="search-box">
           <input type="text" id="search-input" class="search-input" placeholder="Buscar por nombre, producto o distrito...">
           <button class="btn-add" id="btn-open-add-modal"><span>+</span> Nuevo</button>
+          <button onclick="abrirChatEquipoCT()" style="background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(124,58,237,0.08));border:1px solid rgba(124,58,237,0.3);color:#a78bfa;padding:8px 12px;border-radius:8px;font-weight:700;font-size:0.78rem;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;-webkit-tap-highlight-color:transparent" title="Chat interno del equipo">💬 Chat equipo</button>
         </div>
         <div class="filters-scroll">
           <div class="filter-chip active" data-filter="Todos">Todos</div>
@@ -1278,6 +1290,86 @@
         </div>
         <div id="backup-ct-status" style="font-size:0.7rem;color:var(--text-secondary);margin-top:8px;min-height:16px;text-align:center"></div>
       </div>
+
+      <!-- ☁️ NUBE FIREBASE -->
+      <div class="card" style="margin-top: 14px;">
+        <div class="modal-title" style="font-size: 0.95rem;">☁️ Sincronización en la nube (Firebase)</div>
+        <p style="font-size:0.72rem;color:var(--text-secondary);margin-bottom:12px">Guarda tus plantillas, categorías, tags, QRs y configuración en la nube. Si cambias de celular o desinstalas, puedes restaurar todo.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="btn btn-qr" onclick="guardarEnNubeCT()" style="height:42px;font-size:0.78rem;background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(79,142,247,0.08));border-color:rgba(59,130,246,0.3);color:var(--accent)">☁️ Guardar en nube</button>
+          <button class="btn btn-qr" onclick="cargarDesdeNubeCT()" style="height:42px;font-size:0.78rem;background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.06));border-color:rgba(16,185,129,0.3);color:#10b981">📥 Cargar desde nube</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:8px 10px;background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.15);border-radius:8px">
+          <div style="font-size:0.7rem;color:var(--text-secondary)">Auto-sync</div>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="ct-autosync-toggle" onchange="toggleAutoSyncCT(this.checked)" style="cursor:pointer">
+            <span style="font-size:0.7rem;font-weight:700;color:var(--text)">Activado</span>
+          </label>
+        </div>
+        <div id="ct-nube-status" style="font-size:0.7rem;color:var(--text-secondary);margin-top:8px;min-height:16px;text-align:center"></div>
+        <div style="font-size:0.65rem;color:var(--text-secondary);margin-top:8px;line-height:1.4;text-align:center">
+          🔒 Tus datos están protegidos por tu sesión Firebase.<br>
+          UID: <span id="ct-uid-display" style="font-family:monospace;font-size:0.62rem;word-break:break-all">Cargando...</span>
+        </div>
+      </div>
+
+      <!-- 🎨 THEME STUDIO -->
+      <div class="card" style="margin-top: 14px;">
+        <div class="modal-title" style="font-size: 0.95rem;">🎨 Theme Studio</div>
+        <p style="font-size:0.72rem;color:var(--text-secondary);margin-bottom:12px">Personaliza los colores de ClienteTrack. Los cambios se guardan automáticamente y se sincronizan con la nube.</p>
+
+        <div style="margin-bottom:12px">
+          <label style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;display:block;margin-bottom:6px">🎨 Color de acento</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button onclick="ctThemeSetAccent('#3b82f6','#1d4ed8')" style="width:36px;height:36px;background:#3b82f6;border:2px solid var(--border-color);border-radius:50%;cursor:pointer" title="Azul"></button>
+            <button onclick="ctThemeSetAccent('#7c3aed','#5a189a')" style="width:36px;height:36px;background:#7c3aed;border:2px solid var(--border-color);border-radius:50%;cursor:pointer" title="Morado"></button>
+            <button onclick="ctThemeSetAccent('#10b981','#059669')" style="width:36px;height:36px;background:#10b981;border:2px solid var(--border-color);border-radius:50%;cursor:pointer" title="Verde"></button>
+            <button onclick="ctThemeSetAccent('#f59e0b','#d97706')" style="width:36px;height:36px;background:#f59e0b;border:2px solid var(--border-color);border-radius:50%;cursor:pointer" title="Ámbar"></button>
+            <button onclick="ctThemeSetAccent('#ef4444','#dc2626')" style="width:36px;height:36px;background:#ef4444;border:2px solid var(--border-color);border-radius:50%;cursor:pointer" title="Rojo"></button>
+            <button onclick="ctThemeSetAccent('#ec4899','#be185d')" style="width:36px;height:36px;background:#ec4899;border:2px solid var(--border-color);border-radius:50%;cursor:pointer" title="Rosa"></button>
+            <button onclick="ctThemeSetAccent('#06b6d4','#0891b2')" style="width:36px;height:36px;background:#06b6d4;border:2px solid var(--border-color);border-radius:50%;cursor:pointer" title="Cyan"></button>
+            <label style="width:36px;height:36px;border:2px dashed var(--border-color);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.9rem;color:var(--text-secondary)" title="Personalizado">
+              🎨
+              <input type="color" id="ct-theme-custom-color" onchange="ctThemeCustomColor(this.value)" style="display:none">
+            </label>
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;display:block;margin-bottom:6px">🌙 Modo</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <button onclick="ctThemeSetMode('dark')" id="ct-theme-btn-dark" style="padding:10px;background:var(--input-bg);border:2px solid var(--border-color);border-radius:10px;color:var(--text-primary);font-weight:700;font-size:0.78rem;cursor:pointer;font-family:inherit">🌙 Oscuro</button>
+            <button onclick="ctThemeSetMode('light')" id="ct-theme-btn-light" style="padding:10px;background:var(--input-bg);border:2px solid var(--border-color);border-radius:10px;color:var(--text-primary);font-weight:700;font-size:0.78rem;cursor:pointer;font-family:inherit">☀️ Claro</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;display:block;margin-bottom:6px">📏 Tamaño de texto</label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:0.65rem;color:var(--text-secondary)">A</span>
+            <input type="range" id="ct-theme-font-size" min="85" max="115" step="5" value="100" onchange="ctThemeSetFontSize(this.value)" style="flex:1;cursor:pointer">
+            <span style="font-size:1.1rem;color:var(--text-secondary)">A</span>
+          </div>
+          <div style="font-size:0.65rem;color:var(--text-secondary);text-align:center;margin-top:4px" id="ct-theme-font-label">100%</div>
+        </div>
+
+        <button onclick="ctThemeReset()" style="width:100%;padding:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;color:#ef4444;font-weight:700;font-size:0.78rem;cursor:pointer;font-family:inherit">↩️ Restablecer tema por defecto</button>
+      </div>
+
+      <!-- 🌐 MODO OFFLINE -->
+      <div class="card" style="margin-top: 14px;">
+        <div class="modal-title" style="font-size: 0.95rem;">🌐 Estado de conexión</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--input-bg);border:1px solid var(--border-color);border-radius:10px;margin-top:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div id="ct-offline-indicator" style="width:10px;height:10px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981"></div>
+            <span style="font-size:0.78rem;font-weight:700;color:var(--text-primary)" id="ct-offline-text">Conectado</span>
+          </div>
+          <span style="font-size:0.65rem;color:var(--text-secondary)" id="ct-offline-detail">Sincronización activa</span>
+        </div>
+        <div style="font-size:0.65rem;color:var(--text-secondary);margin-top:8px;line-height:1.4">
+          💡 ClienteTrack funciona offline. Tus cambios se guardan localmente y se sincronizan cuando vuelva la conexión.
+        </div>
+      </div>
     </main>
 
     <!-- MENÚ INFERIOR FIJO -->
@@ -1519,6 +1611,228 @@
     </div>
   </div>
 
+  <!-- ═══════════════════════════════════════════════════════════
+       CHAT INTERNO — ClienteTrack Fase B
+       Conecta con el mismo chat de RiderTrack vía Firebase
+       ═══════════════════════════════════════════════════════════ -->
+
+  <!-- MODAL: Inbox del chat (lista de conversaciones) -->
+  <div id="ct-chat-modal-inbox" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:10400;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:flex-end;justify-content:center;overflow:hidden;">
+    <div style="background:var(--bg-card,#1a1a2e);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:0 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:3px solid var(--accent,#3b82f6);max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;animation:slideUp 0.3s ease">
+      <div style="display:flex;justify-content:center;padding:12px 0 0"><div style="width:40px;height:4px;background:var(--text-secondary,rgba(255,255,255,0.2));border-radius:4px"></div></div>
+      <div style="padding:8px 20px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);position:sticky;top:0;background:var(--bg-card,#1a1a2e);z-index:2">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-dark,#1d4ed8));display:flex;align-items:center;justify-content:center;font-size:0.95rem">💬</div>
+          <div>
+            <div style="font-size:1rem;font-weight:800;color:var(--text-primary,#fff)">Chat del equipo</div>
+            <div style="font-size:0.62rem;color:var(--text-secondary)" id="ct-chat-inbox-sub">Cargando...</div>
+          </div>
+        </div>
+        <button onclick="cerrarChatInboxCT()" style="background:rgba(128,128,128,0.15);border:1px solid rgba(128,128,128,0.3);border-radius:10px;padding:8px 12px;color:var(--text-primary,#fff);font-size:1.1rem;cursor:pointer;min-width:40px;min-height:40px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent">✕</button>
+      </div>
+      <div id="ct-chat-inbox-lista" style="padding:8px 12px">
+        <div style="text-align:center;padding:40px 20px;color:var(--text-secondary);font-size:0.82rem">Cargando chats...</div>
+      </div>
+      <div style="padding:10px 16px 0;border-top:1px solid var(--border-color)">
+        <button onclick="abrirNuevoChatDirectoCT()" style="width:100%;padding:12px;background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(124,58,237,0.08));border:1px solid rgba(124,58,237,0.3);border-radius:12px;color:#a78bfa;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit">➕ Nuevo chat directo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Conversación (mensajes) -->
+  <div id="ct-chat-modal-conversacion" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;max-height:100vh;z-index:10600;background:var(--bg-card,#1a1a2e);flex-direction:column;overflow:hidden;">
+    <div style="background:var(--bg-card,#1a1a2e);padding:14px 12px;display:flex;align-items:center;gap:8px;border-bottom:2px solid var(--accent);flex-shrink:0;position:sticky;top:0;z-index:10;min-height:56px;">
+      <button onclick="cerrarChatConversacionCT()" style="background:rgba(128,128,128,0.15);border:1px solid rgba(128,128,128,0.3);color:var(--text-primary,#fff);font-size:1.5rem;cursor:pointer;padding:6px 12px;border-radius:10px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;flex-shrink:0">✕</button>
+      <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-dark,#1d4ed8));display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;overflow:hidden" id="ct-chat-conv-avatar">💬</div>
+      <div style="flex:1;min-width:0">
+        <div id="ct-chat-conv-titulo" style="font-weight:800;font-size:0.95rem;color:var(--text-primary,#fff);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Cargando...</div>
+        <div id="ct-chat-conv-sub" style="font-size:0.62rem;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      </div>
+    </div>
+    <div id="ct-chat-conv-mensajes" style="flex:1 1 0;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px;display:flex;flex-direction:column;gap:6px;background:var(--bg-card,#1a1a2e);">
+      <div style="text-align:center;color:var(--text-secondary);font-size:0.78rem;padding:30px">Cargando mensajes...</div>
+    </div>
+    <div style="background:var(--bg-card,#1a1a2e);padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border-color);display:flex;gap:8px;align-items:flex-end;flex-shrink:0;position:sticky;bottom:0;z-index:10;">
+      <textarea id="ct-chat-conv-input" placeholder="Escribe un mensaje..." rows="1" style="flex:1;padding:12px 14px;border-radius:18px;border:1px solid var(--border-color);background:var(--input-bg);color:var(--text-primary,#fff);font-size:0.9rem;outline:none;font-family:inherit;resize:none;max-height:90px;min-height:44px;line-height:1.3" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,90)+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatEnviarMensajeCT()}"></textarea>
+      <button onclick="chatEnviarMensajeCT()" style="background:linear-gradient(135deg,var(--accent),var(--accent-dark,#1d4ed8));color:#fff;border:none;border-radius:50%;width:44px;height:44px;font-size:1.2rem;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 12px rgba(59,130,246,0.4);">➤</button>
+    </div>
+  </div>
+
+  <!-- MODAL: Selector de chat para informar sobre un cliente -->
+  <div id="ct-chat-modal-informar" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:10500;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:flex-end;justify-content:center;overflow:hidden;">
+    <div style="background:var(--bg-card,#1a1a2e);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:0 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:3px solid #f59e0b;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch">
+      <div style="display:flex;justify-content:center;padding:12px 0 0"><div style="width:40px;height:4px;background:var(--text-secondary,rgba(255,255,255,0.2));border-radius:4px"></div></div>
+      <div style="padding:8px 20px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);position:sticky;top:0;background:var(--bg-card,#1a1a2e);z-index:2">
+        <div>
+          <div style="font-size:1rem;font-weight:800;color:#f59e0b">🚨 Informar al equipo</div>
+          <div style="font-size:0.62rem;color:var(--text-secondary)" id="ct-informar-sub">Elige dónde informar</div>
+        </div>
+        <button onclick="cerrarInformarEquipoCT()" style="background:rgba(128,128,128,0.15);border:1px solid rgba(128,128,128,0.3);border-radius:10px;padding:8px 12px;color:var(--text-primary,#fff);font-size:1.1rem;cursor:pointer;min-width:40px;min-height:40px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent">✕</button>
+      </div>
+      <div style="padding:14px 16px">
+        <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;padding:10px;margin-bottom:14px">
+          <div style="font-size:0.7rem;color:var(--text-secondary);font-weight:700;margin-bottom:4px">📋 Vista previa del mensaje</div>
+          <div id="ct-informar-preview" style="font-size:0.78rem;color:var(--text-primary);line-height:1.5;white-space:pre-wrap"></div>
+        </div>
+        <div style="font-size:0.72rem;color:var(--text-secondary);margin-bottom:8px;font-weight:700">¿A dónde enviar?</div>
+        <div id="ct-informar-chats-list" style="display:flex;flex-direction:column;gap:6px">
+          <div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:0.78rem">Cargando chats...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Calendario mensual de reprogramados -->
+  <div id="ct-modal-calendario-reprog" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:10500;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:flex-end;justify-content:center;overflow:hidden;">
+    <div style="background:var(--bg-card,#1a1a2e);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:0 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:3px solid #8B5CF6;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch">
+      <div style="display:flex;justify-content:center;padding:12px 0 0"><div style="width:40px;height:4px;background:var(--text-secondary,rgba(255,255,255,0.2));border-radius:4px"></div></div>
+      <div style="padding:8px 16px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);position:sticky;top:0;background:var(--bg-card,#1a1a2e);z-index:2">
+        <button onclick="cambiarMesCalendarioCT(-1)" style="background:rgba(128,128,128,0.15);border:1px solid rgba(128,128,128,0.3);border-radius:8px;padding:6px 10px;color:var(--text-primary);font-size:1rem;cursor:pointer;min-width:36px;min-height:36px">◀</button>
+        <div style="text-align:center">
+          <div style="font-size:1rem;font-weight:800;color:var(--text-primary)">📅 Calendario</div>
+          <div id="ct-cal-titulo" style="font-size:0.72rem;color:var(--text-secondary);margin-top:2px">—</div>
+        </div>
+        <button onclick="cambiarMesCalendarioCT(1)" style="background:rgba(128,128,128,0.15);border:1px solid rgba(128,128,128,0.3);border-radius:8px;padding:6px 10px;color:var(--text-primary);font-size:1rem;cursor:pointer;min-width:36px;min-height:36px">▶</button>
+      </div>
+      <div style="padding:12px 12px 4px">
+        <div id="ct-cal-dias-semana" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px"></div>
+        <div id="ct-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div>
+      </div>
+      <div id="ct-cal-detalle" style="padding:8px 16px 16px;display:none">
+        <div style="font-size:0.78rem;font-weight:800;color:#a78bfa;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em" id="ct-cal-detalle-fecha"></div>
+        <div id="ct-cal-detalle-lista"></div>
+      </div>
+      <div style="padding:8px 16px 0;border-top:1px solid var(--border-color);display:flex;gap:6px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:4px;font-size:0.65rem;color:var(--text-secondary)">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#EF4444"></span> Hoy
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;font-size:0.65rem;color:var(--text-secondary)">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#8B5CF6"></span> Con reprog
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;font-size:0.65rem;color:var(--text-secondary)">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#F59E0B"></span> 3+
+        </div>
+      </div>
+      <div style="padding:10px 16px 0">
+        <button onclick="cerrarCalendarioReprogCT()" style="width:100%;padding:11px;background:rgba(128,128,128,0.1);border:1px solid var(--border-color);border-radius:10px;color:var(--text-secondary);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Recordatorio de cobro -->
+  <div id="ct-modal-recordatorio" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:10500;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:flex-end;justify-content:center;overflow:hidden;">
+    <div style="background:var(--bg-card,#1a1a2e);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:0 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:3px solid #F59E0B;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch">
+      <div style="display:flex;justify-content:center;padding:12px 0 0"><div style="width:40px;height:4px;background:var(--text-secondary,rgba(255,255,255,0.2));border-radius:4px"></div></div>
+      <div style="padding:8px 16px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);position:sticky;top:0;background:var(--bg-card,#1a1a2e);z-index:2">
+        <div>
+          <div style="font-size:1rem;font-weight:800;color:#F59E0B">🔔 Recordatorio de cobro</div>
+          <div style="font-size:0.7rem;color:var(--text-secondary);margin-top:2px" id="ct-rec-cliente-nombre">Cliente: —</div>
+        </div>
+        <button onclick="cerrarRecordatorioCobro()" style="background:rgba(128,128,128,0.15);border:1px solid rgba(128,128,128,0.3);border-radius:10px;padding:8px 12px;color:var(--text-primary,#fff);font-size:1.1rem;cursor:pointer;min-width:40px;min-height:40px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent">✕</button>
+      </div>
+      <div style="padding:16px">
+        <div id="ct-rec-form" style="display:block">
+          <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:10px;margin-bottom:14px">
+            <div style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;margin-bottom:4px">💰 Monto a cobrar</div>
+            <div id="ct-rec-monto" style="font-size:1.2rem;font-weight:800;color:#F59E0B">S/ 0</div>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;display:block;margin-bottom:4px">📅 ¿Cuándo recordar?</label>
+            <input type="date" id="ct-rec-fecha" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--border-color);background:var(--input-bg);color:var(--text-primary);font-size:0.85rem;font-family:inherit;outline:none">
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;display:block;margin-bottom:4px">⏰ Hora (opcional)</label>
+            <input type="time" id="ct-rec-hora" style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--border-color);background:var(--input-bg);color:var(--text-primary);font-size:0.85rem;font-family:inherit;outline:none">
+          </div>
+          <div style="margin-bottom:14px">
+            <label style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;display:block;margin-bottom:4px">📝 Nota (opcional)</label>
+            <textarea id="ct-rec-nota" placeholder="Ej: Cobrar Yape + efectivo" rows="2" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border-color);background:var(--input-bg);color:var(--text-primary);font-size:0.82rem;font-family:inherit;outline:none;resize:none"></textarea>
+          </div>
+          <button onclick="guardarRecordatorioCT()" style="width:100%;padding:13px;background:linear-gradient(135deg,#F59E0B,#d97706);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.9rem;cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 12px rgba(245,158,11,0.4)">✅ Guardar recordatorio</button>
+        </div>
+        <div id="ct-rec-existentes" style="margin-top:16px">
+          <div style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">📋 Recordatorios activos</div>
+          <div id="ct-rec-lista" style="display:flex;flex-direction:column;gap:6px">
+            <div style="text-align:center;padding:14px;color:var(--text-secondary);font-size:0.75rem">Cargando...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Estadísticas históricas -->
+  <div id="ct-modal-estadisticas" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:10500;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:flex-end;justify-content:center;overflow:hidden;">
+    <div style="background:var(--bg-card,#1a1a2e);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:0 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:3px solid #7c3aed;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch">
+      <div style="display:flex;justify-content:center;padding:12px 0 0"><div style="width:40px;height:4px;background:var(--text-secondary,rgba(255,255,255,0.2));border-radius:4px"></div></div>
+      <div style="padding:8px 16px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);position:sticky;top:0;background:var(--bg-card,#1a1a2e);z-index:2">
+        <div>
+          <div style="font-size:1rem;font-weight:800;color:#a78bfa">📊 Estadísticas Históricas</div>
+          <div style="font-size:0.7rem;color:var(--text-secondary);margin-top:2px" id="ct-est-sub">Tu rendimiento en el tiempo</div>
+        </div>
+        <button onclick="cerrarEstadisticasCT()" style="background:rgba(128,128,128,0.15);border:1px solid rgba(128,128,128,0.3);border-radius:10px;padding:8px 12px;color:var(--text-primary,#fff);font-size:1.1rem;cursor:pointer;min-width:40px;min-height:40px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent">✕</button>
+      </div>
+      <div style="padding:14px 16px">
+        <!-- Selector de período -->
+        <div style="display:flex;gap:6px;margin-bottom:14px">
+          <button onclick="cambiarPeriodoStatsCT('semana')" id="ct-stats-tab-semana" style="flex:1;padding:9px;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);border-radius:8px;color:#a78bfa;font-weight:700;font-size:0.78rem;cursor:pointer;font-family:inherit">📅 7 días</button>
+          <button onclick="cambiarPeriodoStatsCT('mes')" id="ct-stats-tab-mes" style="flex:1;padding:9px;background:var(--input-bg,rgba(255,255,255,0.04));border:1px solid var(--border-color);border-radius:8px;color:var(--text-secondary);font-weight:700;font-size:0.78rem;cursor:pointer;font-family:inherit">📅 30 días</button>
+          <button onclick="cambiarPeriodoStatsCT('todo')" id="ct-stats-tab-todo" style="flex:1;padding:9px;background:var(--input-bg,rgba(255,255,255,0.04));border:1px solid var(--border-color);border-radius:8px;color:var(--text-secondary);font-weight:700;font-size:0.78rem;cursor:pointer;font-family:inherit">📅 Todo</button>
+        </div>
+        <!-- Contenido dinámico -->
+        <div id="ct-stats-contenido">
+          <div style="text-align:center;padding:30px;color:var(--text-secondary);font-size:0.82rem">Cargando estadísticas...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: IA sugerir mensaje -->
+  <div id="ct-modal-ia-sugerir" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:10500;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:flex-end;justify-content:center;overflow:hidden;">
+    <div style="background:var(--bg-card,#1a1a2e);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:0 0 calc(40px + env(safe-area-inset-bottom,0px));border-top:3px solid #818cf8;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch">
+      <div style="display:flex;justify-content:center;padding:12px 0 0"><div style="width:40px;height:4px;background:var(--text-secondary,rgba(255,255,255,0.2));border-radius:4px"></div></div>
+      <div style="padding:8px 16px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);position:sticky;top:0;background:var(--bg-card,#1a1a2e);z-index:2">
+        <div>
+          <div style="font-size:1rem;font-weight:800;color:#818cf8">🤖 Sugerir mensaje con IA</div>
+          <div style="font-size:0.7rem;color:var(--text-secondary);margin-top:2px" id="ct-ia-cliente-nombre">Cliente: —</div>
+        </div>
+        <button onclick="cerrarIASugerirCT()" style="background:rgba(128,128,128,0.15);border:1px solid rgba(128,128,128,0.3);border-radius:10px;padding:8px 12px;color:var(--text-primary,#fff);font-size:1.1rem;cursor:pointer;min-width:40px;min-height:40px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent">✕</button>
+      </div>
+      <div style="padding:14px 16px">
+        <!-- Contexto del cliente -->
+        <div style="background:var(--input-bg,rgba(255,255,255,0.04));border:1px solid var(--border-color);border-radius:10px;padding:10px;margin-bottom:12px;font-size:0.72rem;color:var(--text-secondary);line-height:1.5" id="ct-ia-contexto"></div>
+        <!-- Tipo de mensaje a sugerir -->
+        <div style="margin-bottom:12px">
+          <label style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;display:block;margin-bottom:6px">📝 ¿Qué tipo de mensaje necesitas?</label>
+          <select id="ct-ia-tipo" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border-color);background:var(--input-bg);color:var(--text-primary);font-size:0.85rem;font-family:inherit;outline:none;cursor:pointer">
+            <option value="recordatorio_pago">💰 Recordatorio de pago</option>
+            <option value="no_contesta">📵 Cliente no contesta</option>
+            <option value="reprogramar">🔄 Reprogramar entrega</option>
+            <option value="confirmacion_direccion">📍 Confirmar dirección</option>
+            <option value="pedir_ubicacion">🗺️ Pedir ubicación por Google Maps</option>
+            <option value="agradecimiento">✅ Agradecimiento por compra</option>
+            <option value="seguimiento">📦 Seguimiento de pedido</option>
+            <option value="libre">✍️ Mensaje libre (especifica abajo)</option>
+          </select>
+        </div>
+        <div style="margin-bottom:12px" id="ct-ia-libre-wrap">
+          <label style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;display:block;margin-bottom:6px">✍️ Instrucción libre (opcional)</label>
+          <textarea id="ct-ia-libre" placeholder="Ej: Preguntar si prefiere Yape o efectivo" rows="2" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border-color);background:var(--input-bg);color:var(--text-primary);font-size:0.82rem;font-family:inherit;outline:none;resize:none"></textarea>
+        </div>
+        <button onclick="generarMensajeIACT()" id="ct-ia-generar-btn" style="width:100%;padding:13px;background:linear-gradient(135deg,#818cf8,#6366f1);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.9rem;cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 12px rgba(99,102,241,0.4)">🤖 Generar mensaje con IA</button>
+        <!-- Resultado -->
+        <div id="ct-ia-resultado" style="display:none;margin-top:14px">
+          <div style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">✨ Mensaje sugerido</div>
+          <div id="ct-ia-mensaje" style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.3);border-radius:10px;padding:12px;font-size:0.85rem;color:var(--text-primary);line-height:1.5;white-space:pre-wrap;margin-bottom:10px"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <button onclick="copiarMensajeIACT()" style="padding:11px;background:var(--input-bg,rgba(255,255,255,0.04));border:1px solid var(--border-color);border-radius:10px;color:var(--text-primary);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit">📋 Copiar</button>
+            <button onclick="enviarMensajeIACT()" id="ct-ia-enviar-btn" style="padding:11px;background:linear-gradient(135deg,#25D366,#128C7E);border:none;border-radius:10px;color:#fff;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit">💬 Enviar WA</button>
+          </div>
+          <button onclick="generarMensajeIACT()" style="width:100%;padding:9px;margin-top:8px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.3);border-radius:8px;color:#818cf8;font-weight:700;font-size:0.78rem;cursor:pointer;font-family:inherit">🔄 Generar otro</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- SCRIPTS Y CONTROLADORES -->
   <script>
 // ===== STATE + CORE (app.js) =====
@@ -1604,9 +1918,1874 @@ function loadState() {
 function saveState() {
   try { localStorage.setItem('clienttrack_state_v2', JSON.stringify(state)); }
   catch(e) { console.warn('Error guardando estado:', e); }
+  // Auto-sync a Firebase con debounce de 3 segundos
+  if(typeof _ctAutoSyncTimer !== 'undefined') clearTimeout(_ctAutoSyncTimer);
+  _ctAutoSyncTimer = setTimeout(function(){
+    if(_ctDb && _ctUid && _ctAutoSyncEnabled){
+      _ctGuardarEnNube(true);  // true = silencioso
+    }
+  }, 3000);
 }
 
 loadState();
+
+// ═══════════════════════════════════════════════════════════
+// ║  FIREBASE — ClienteTrack                                     ║
+// ║  Mismo proyecto ridertrack-93c8a que RiderTrack              ║
+// ║  Auth anónimo + Firestore para backup de config/plantillas   ║
+// ═══════════════════════════════════════════════════════════
+
+// Variables globales Firebase (mismo patrón que RiderTrack)
+var _ctDb = null;
+var _ctAuth = null;
+var _ctUid = null;
+var _ctAutoSyncTimer;
+var _ctAutoSyncEnabled = (localStorage.getItem('ct_autosync') !== 'false'); // Por defecto true
+var _ctLastSavedAt = 0;
+
+// ── Estado visual del indicador Firebase ────────────────────
+function _ctFbSetStatus(icon, txt){
+  var i = document.getElementById('ct-fb-icon');
+  var t = document.getElementById('ct-fb-txt');
+  if(i) i.textContent = icon || '☁️';
+  if(t) t.textContent = txt || '';
+}
+
+// ── Inicializar Firebase (mismo proyecto que RiderTrack) ─────
+function _ctInitFirebase(){
+  if(typeof firebase === 'undefined'){
+    _ctFbSetStatus('☁️','Sin internet');
+    return;
+  }
+  try {
+    if(!firebase.apps.length){
+      firebase.initializeApp({
+        apiKey:'AIzaSyAzDl7gaS40JoXt9OoCPzG9FyaVPz_O34I',
+        authDomain:'ridertrack-93c8a.firebaseapp.com',
+        projectId:'ridertrack-93c8a',
+        storageBucket:'ridertrack-93c8a.firebasestorage.app',
+        messagingSenderId:'851606828420',
+        appId:'1:851606828420:web:873a892a091394693e59d1'
+      });
+    }
+    _ctDb = firebase.firestore();
+    _ctAuth = firebase.auth();
+
+    _ctAuth.onAuthStateChanged(function(user){
+      if(user){
+        _ctUid = user.uid;
+        _ctFbSetStatus('☁️','Conectado');
+        // Mostrar UID en la UI
+        var uidEl = document.getElementById('ct-uid-display');
+        if(uidEl) uidEl.textContent = _ctUid.substring(0,16) + '...';
+        // Sincronizar toggle con localStorage
+        var toggle = document.getElementById('ct-autosync-toggle');
+        if(toggle) toggle.checked = _ctAutoSyncEnabled;
+        // Si hay auto-sync activado, cargar datos de la nube al iniciar
+        if(_ctAutoSyncEnabled){
+          setTimeout(function(){ _ctCargarDesdeNube(true); }, 1500);
+        }
+      } else {
+        _ctFbSetStatus('☁️','Sin sesión');
+        // Login anónimo automático
+        _ctAuth.signInAnonymously().then(function(c){
+          _ctUid = c.user.uid;
+          _ctFbSetStatus('☁️','Conectado');
+          var uidEl = document.getElementById('ct-uid-display');
+          if(uidEl) uidEl.textContent = _ctUid.substring(0,16) + '...';
+          var toggle = document.getElementById('ct-autosync-toggle');
+          if(toggle) toggle.checked = _ctAutoSyncEnabled;
+          if(_ctAutoSyncEnabled){
+            setTimeout(function(){ _ctCargarDesdeNube(true); }, 1500);
+          }
+        }).catch(function(){
+          _ctFbSetStatus('☁️','Sin sesión');
+        });
+      }
+    });
+  } catch(e){
+    console.warn('Error initFirebase CT:', e);
+    _ctFbSetStatus('☁️','Sin conexión');
+  }
+}
+
+// ── Cargar scripts Firebase dinámicamente (igual que RiderTrack) ──
+(function(){
+  function loadScript(src, onload){
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = onload;
+    s.onerror = function(){ _ctFbSetStatus('☁️','Sin internet'); };
+    document.head.appendChild(s);
+  }
+  loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js', function(){
+    loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js', function(){
+      loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js', function(){
+        setTimeout(_ctInitFirebase, 300);
+      });
+    });
+  });
+})();
+
+// ── Guardar en la nube ──────────────────────────────────────
+function _ctGuardarEnNube(silent){
+  if(!_ctDb || !_ctUid){
+    if(!silent) showToast('⚠️ Sin conexión Firebase');
+    return;
+  }
+  _ctFbSetStatus('⏳','Guardando...');
+  var statusEl = document.getElementById('ct-nube-status');
+  if(statusEl && !silent) statusEl.textContent = 'Guardando en la nube...';
+
+  // Construir objeto a guardar (sin clients — esos vienen de RiderTrack)
+  var datosAGuardar = {
+    config: state.config || {},
+    templates: state.templates || [],
+    categories: state.categories || [],
+    customTags: state.customTags || [],
+    qrs: state.qrs || {},
+    theme: state.theme || 'dark',
+    savedAt: new Date().toISOString(),
+    version: '2.0',
+    app: 'ClienteTrack'
+  };
+
+  _ctDb.collection('usuarios').doc(_ctUid)
+    .collection('clientetrack_data').doc('data')
+    .set(datosAGuardar, {merge:true})
+    .then(function(){
+      _ctLastSavedAt = Date.now();
+      _ctFbSetStatus('☁️✅','Guardado');
+      if(statusEl) statusEl.textContent = '✅ Guardado en la nube';
+      if(!silent) showToast('☁️ Guardado en la nube');
+      setTimeout(function(){ _ctFbSetStatus('☁️','Conectado'); }, 2000);
+      setTimeout(function(){ if(statusEl) statusEl.textContent = ''; }, 4000);
+    })
+    .catch(function(e){
+      _ctFbSetStatus('☁️❌','Error');
+      if(statusEl) statusEl.textContent = '⚠️ Error: ' + (e.message || '');
+      if(!silent) showToast('⚠️ Error: ' + (e.message || ''));
+      setTimeout(function(){ _ctFbSetStatus('☁️','Conectado'); }, 3000);
+    });
+}
+
+window.guardarEnNubeCT = function(){
+  if(!_ctDb || !_ctUid){
+    showToast('⚠️ Sin conexión Firebase');
+    return;
+  }
+  _ctGuardarEnNube(false);
+};
+
+// ── Cargar desde la nube ────────────────────────────────────
+function _ctCargarDesdeNube(silent){
+  if(!_ctDb || !_ctUid){
+    if(!silent) showToast('⚠️ Sin conexión Firebase');
+    return;
+  }
+  _ctFbSetStatus('⏳','Cargando...');
+  var statusEl = document.getElementById('ct-nube-status');
+  if(statusEl && !silent) statusEl.textContent = 'Cargando desde la nube...';
+
+  _ctDb.collection('usuarios').doc(_ctUid)
+    .collection('clientetrack_data').doc('data')
+    .get()
+    .then(function(doc){
+      if(!doc.exists){
+        _ctFbSetStatus('☁️','Conectado');
+        if(statusEl) statusEl.textContent = '📭 No hay datos guardados en la nube todavía';
+        if(!silent) showToast('📭 No hay datos en la nube todavía');
+        setTimeout(function(){ if(statusEl) statusEl.textContent = ''; }, 4000);
+        return;
+      }
+      var d = doc.data();
+      var habiaCambios = false;
+
+      // Aplicar datos si existen — SIN tocar los clients (vienen de RiderTrack)
+      if(d.config && Object.keys(d.config).length){
+        state.config = Object.assign({}, state.config, d.config);
+        habiaCambios = true;
+      }
+      if(d.templates && d.templates.length){
+        state.templates = d.templates;
+        habiaCambios = true;
+      }
+      if(d.categories && d.categories.length){
+        state.categories = d.categories;
+        habiaCambios = true;
+      }
+      if(d.customTags && d.customTags.length){
+        state.customTags = d.customTags;
+        habiaCambios = true;
+      }
+      if(d.qrs && Object.keys(d.qrs).length){
+        state.qrs = Object.assign({}, state.qrs, d.qrs);
+        habiaCambios = true;
+      }
+      if(d.theme){
+        state.theme = d.theme;
+        if(typeof applyTheme === 'function') applyTheme(d.theme);
+        var slider = document.getElementById('theme-slider');
+        if(slider) slider.value = d.theme === 'light' ? 1 : 0;
+        habiaCambios = true;
+      }
+
+      if(habiaCambios){
+        // Guardar localmente
+        try { localStorage.setItem('clienttrack_state_v2', JSON.stringify(state)); } catch(e){}
+        // Re-renderizar todas las vistas
+        if(typeof renderDashboard === 'function') renderDashboard();
+        if(typeof renderClients === 'function') renderClients();
+        if(typeof renderQRs === 'function') renderQRs();
+        if(typeof renderTemplatesList === 'function') renderTemplatesList();
+        if(typeof loadConfigForm === 'function') loadConfigForm();
+
+        _ctFbSetStatus('☁️✅','Cargado');
+        if(statusEl) statusEl.textContent = '✅ Datos cargados desde la nube';
+        if(!silent) showToast('☁️ Datos cargados desde la nube');
+      } else {
+        _ctFbSetStatus('☁️','Conectado');
+        if(statusEl) statusEl.textContent = 'ℹ️ No había datos nuevos en la nube';
+      }
+      setTimeout(function(){ _ctFbSetStatus('☁️','Conectado'); }, 2000);
+      setTimeout(function(){ if(statusEl) statusEl.textContent = ''; }, 4000);
+    })
+    .catch(function(e){
+      _ctFbSetStatus('☁️❌','Error');
+      if(statusEl) statusEl.textContent = '⚠️ Error: ' + (e.message || '');
+      if(!silent) showToast('⚠️ Error: ' + (e.message || ''));
+      setTimeout(function(){ _ctFbSetStatus('☁️','Conectado'); }, 3000);
+    });
+}
+
+window.cargarDesdeNubeCT = function(){
+  if(!_ctDb || !_ctUid){
+    showToast('⚠️ Sin conexión Firebase');
+    return;
+  }
+  // Confirmar antes de sobreescribir
+  if(!confirm('¿Cargar datos desde la nube?\n\nEsto sobreescribirá tus plantillas, categorías, tags, QRs y configuración actuales.\nLos clientes NO se ven afectados (siguen viniendo de RiderTrack).')){
+    return;
+  }
+  _ctCargarDesdeNube(false);
+};
+
+// ── Toggle auto-sync ────────────────────────────────────────
+window.toggleAutoSyncCT = function(enabled){
+  _ctAutoSyncEnabled = enabled;
+  localStorage.setItem('ct_autosync', enabled ? 'true' : 'false');
+  showToast(enabled ? '✅ Auto-sync activado' : '⚠️ Auto-sync desactivado');
+  if(enabled && _ctDb && _ctUid){
+    // Si se activa, hacer una carga inicial
+    setTimeout(function(){ _ctCargarDesdeNube(true); }, 500);
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// ║  CHAT INTERNO — ClienteTrack Fase B                         ║
+// ║  Comparte perfil con RiderTrack (mismo UID = mismo perfil)  ║
+// ║  Si no hay perfil, muestra aviso de registrarse en RT       ║
+// ═══════════════════════════════════════════════════════════
+
+var _ctChatPerfil = null;       // Perfil de chat (compartido con RiderTrack)
+var _ctChatRoles = {
+  admin:     { label:'👑 Admin',     color:'#EF4444' },
+  moderador: { label:'🛡️ Moderador', color:'#8B5CF6' },
+  motorista: { label:'🛵 Motorista', color:'#06B6D4' },
+  venta:     { label:'💼 Venta',     color:'#10B981' },
+  almacen:   { label:'📦 Almacén',   color:'#F97316' }
+};
+var _ctChatInboxSub = null;     // onSnapshot de chats
+var _ctChatMsgSub = null;       // onSnapshot de mensajes
+var _ctChatChatActual = null;
+var _ctChatInboxData = [];
+var _ctChatUsuariosCache = {};
+var _ctChatUltimoLeido = JSON.parse(localStorage.getItem('ct_chat_leido') || '{}');
+var _ctChatScrollY = 0;
+var _ctInformarClienteId = null;  // ID del cliente cuando se usa "Informar al equipo"
+
+// ── Helpers Android ─────────────────────────────────────────
+function _ctChatBloquearScroll(){
+  _ctChatScrollY = window.scrollY || 0;
+  document.body.style.position = 'fixed';
+  document.body.style.top = '-' + _ctChatScrollY + 'px';
+  document.body.style.width = '100%';
+}
+function _ctChatDesbloquearScroll(){
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, _ctChatScrollY);
+}
+
+// ── Cargar perfil desde Firestore (mismo UID que RiderTrack) ──
+function _ctChatCargarPerfil(callback){
+  if(!_ctDb || !_ctUid){
+    callback(null);
+    return;
+  }
+  _ctDb.collection('chat_usuarios').doc(_ctUid).get().then(function(doc){
+    if(doc.exists){
+      var perfil = doc.data();
+      perfil.uid = _ctUid;
+      _ctChatPerfil = perfil;
+      callback(perfil);
+    } else {
+      callback(null);
+    }
+  }).catch(function(){
+    callback(null);
+  });
+}
+
+// ── Abrir inbox del chat ────────────────────────────────────
+window.abrirChatEquipoCT = function(){
+  if(!_ctDb || !_ctUid){
+    showToast('⚠️ Sin conexión Firebase');
+    return;
+  }
+  // Verificar que tenga perfil de chat (registrado en RiderTrack)
+  _ctChatCargarPerfil(function(perfil){
+    if(!perfil){
+      // No tiene perfil — debe registrarse primero en RiderTrack
+      showToastLargoCT('⚠️ Primero debes registrarte en el chat interno de RiderTrack (botón 💬 en la topbar de RiderTrack). Luego vuelve aquí.');
+      return;
+    }
+    if(perfil.suspendido && perfil.suspendidoHasta && Date.now() < perfil.suspendidoHasta){
+      showToastLargoCT('🚫 Estás suspendido hasta ' + new Date(perfil.suspendidoHasta).toLocaleString('es-PE'));
+      return;
+    }
+    // Abrir inbox
+    var m = document.getElementById('ct-chat-modal-inbox');
+    if(m){ m.style.display = 'flex'; _ctChatBloquearScroll(); }
+    _ctChatSuscribirInbox();
+  });
+};
+
+window.cerrarChatInboxCT = function(){
+  var m = document.getElementById('ct-chat-modal-inbox');
+  if(m) m.style.display = 'none';
+  _ctChatDesbloquearScroll();
+  if(_ctChatInboxSub){ _ctChatInboxSub(); _ctChatInboxSub = null; }
+};
+
+// ── Suscripción al inbox ────────────────────────────────────
+function _ctChatSuscribirInbox(){
+  if(_ctChatInboxSub){ _ctChatInboxSub(); _ctChatInboxSub = null; }
+  if(!_ctDb || !_ctUid || !_ctChatPerfil) return;
+
+  _ctChatInboxSub = _ctDb.collection('chats')
+    .where('tipo','==','grupo')
+    .onSnapshot(function(snap){
+      _ctChatInboxData = [];
+      snap.forEach(function(doc){
+        var d = doc.data(); d.id = doc.id;
+        if(d.esGlobalTodos) _ctChatInboxData.push(d);
+        else if(d.esGlobalRol && d.rolPermitido === _ctChatPerfil.rol) _ctChatInboxData.push(d);
+        else if(d.miembros && d.miembros.indexOf(_ctUid) !== -1) _ctChatInboxData.push(d);
+      });
+      // Chats directos
+      _ctDb.collection('chats').where('tipo','==','directo').get().then(function(snap2){
+        snap2.forEach(function(doc){
+          var d = doc.data(); d.id = doc.id;
+          if(d.miembros && d.miembros.indexOf(_ctUid) !== -1) _ctChatInboxData.push(d);
+        });
+        _ctChatInboxData.sort(function(a,b){
+          var ta = (a.ultimoMsg && a.ultimoMsg.ts) || a.creadoEn || 0;
+          var tb = (b.ultimoMsg && b.ultimoMsg.ts) || b.creadoEn || 0;
+          return tb - ta;
+        });
+        _ctChatRenderInbox();
+      }).catch(function(){});
+    });
+}
+
+function _ctChatRenderInbox(){
+  var cont = document.getElementById('ct-chat-inbox-lista');
+  if(!cont) return;
+  if(!_ctChatInboxData || _ctChatInboxData.length === 0){
+    cont.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-secondary);font-size:0.82rem">📭 No tienes chats todavía.<br><br>Los chats de tu rol aparecerán aquí automáticamente.</div>';
+    var sub = document.getElementById('ct-chat-inbox-sub');
+    if(sub) sub.textContent = 'Sin chats';
+    return;
+  }
+  var rolColor = {
+    admin:'#EF4444', moderador:'#8B5CF6', motorista:'#06B6D4',
+    venta:'#10B981', almacen:'#F97316'
+  };
+  var h = '';
+  var noLeidos = 0;
+  _ctChatInboxData.forEach(function(c){
+    var ultimoLeido = _ctChatUltimoLeido[c.id] || 0;
+    var tsUltimo = (c.ultimoMsg && c.ultimoMsg.ts) || c.creadoEn || 0;
+    var esNoLeido = tsUltimo > ultimoLeido && (!c.ultimoMsg || c.ultimoMsg.autorUid !== _ctUid);
+    if(esNoLeido) noLeidos++;
+    var avatar = '💬';
+    var subTxt = (c.ultimoMsg && c.ultimoMsg.texto) ? c.ultimoMsg.texto.substring(0,50) : 'Sin mensajes aún';
+    var tiempoTxt = tsUltimo ? _ctChatFormatearTiempo(tsUltimo) : '';
+    var autorColor = c.ultimoMsg ? (rolColor[c.ultimoMsg.autorRol] || 'var(--text-secondary)') : 'var(--text-secondary)';
+    var autorNombre = c.ultimoMsg ? (c.ultimoMsg.autorNombre || '') : '';
+    if(c.esGlobalTodos) avatar = '📣';
+    else if(c.esGlobalRol) avatar = (_ctChatRoles[c.rolPermitido] || {label:'💬'}).label.split(' ')[0];
+    else if(c.tipo === 'directo'){
+      var otroUid = (c.miembros || []).filter(function(u){ return u !== _ctUid; })[0];
+      if(otroUid && _ctChatUsuariosCache[otroUid] && _ctChatUsuariosCache[otroUid].fotoURL){
+        avatar = '<img src="'+_ctChatUsuariosCache[otroUid].fotoURL+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover">';
+      } else avatar = '👤';
+    }
+    h += '<div onclick="abrirChatConversacionCT(\''+c.id+'\')" style="display:flex;align-items:center;gap:10px;padding:11px;background:'+(esNoLeido?'rgba(124,58,237,0.08)':'var(--input-bg,rgba(255,255,255,0.04))')+';border:1px solid '+(esNoLeido?'var(--accent)':'var(--border-color)')+';border-radius:12px;margin-bottom:6px;cursor:pointer;transition:all 0.15s;-webkit-tap-highlight-color:transparent">'+
+         '<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-dark,#1d4ed8));display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;overflow:hidden">'+avatar+'</div>'+
+         '<div style="flex:1;min-width:0">'+
+           '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'+
+             '<div style="font-weight:800;font-size:0.88rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(c.nombre||'Chat')+'</div>'+
+             '<div style="font-size:0.62rem;color:var(--text-secondary);flex-shrink:0">'+tiempoTxt+'</div>'+
+           '</div>'+
+           '<div style="font-size:0.74rem;color:'+(esNoLeido?'var(--accent)':'var(--text-secondary)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">'+
+             (c.ultimoMsg?('<span style="color:'+autorColor+';font-weight:700">'+autorNombre+'</span>: '+subTxt):subTxt)+
+           '</div>'+
+         '</div>'+
+         (esNoLeido?'<div style="background:var(--accent);color:#fff;border-radius:99px;min-width:18px;height:18px;padding:0 5px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:800;flex-shrink:0">!</div>':'')+
+         '</div>';
+  });
+  cont.innerHTML = h;
+  var sub = document.getElementById('ct-chat-inbox-sub');
+  if(sub) sub.textContent = _ctChatInboxData.length + ' chat' + (_ctChatInboxData.length!==1?'s':'') + (noLeidos?(' · '+noLeidos+' sin leer'):'');
+}
+
+function _ctChatFormatearTiempo(ts){
+  if(!ts) return '';
+  var d = new Date(ts);
+  var ahora = new Date();
+  var diff = ahora - d;
+  if(diff < 60000) return 'ahora';
+  if(diff < 3600000) return Math.floor(diff/60000) + 'm';
+  if(diff < 86400000 && d.getDate() === ahora.getDate()) return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+  if(diff < 604800000) return ['dom','lun','mar','mié','jue','vie','sáb'][d.getDay()];
+  return d.getDate()+'/'+(d.getMonth()+1);
+}
+
+// ── Abrir conversación ──────────────────────────────────────
+window.abrirChatConversacionCT = function(chatId){
+  _ctChatChatActual = chatId;
+  var m = document.getElementById('ct-chat-modal-conversacion');
+  if(m) m.style.display = 'flex';
+  _ctChatBloquearScroll();
+  _ctChatUltimoLeido[chatId] = Date.now();
+  localStorage.setItem('ct_chat_leido', JSON.stringify(_ctChatUltimoLeido));
+
+  _ctDb.collection('chats').doc(chatId).get().then(function(doc){
+    if(!doc.exists){ showToast('⚠️ Chat no encontrado'); cerrarChatConversacionCT(); return; }
+    var c = doc.data(); c.id = chatId;
+    var titulo = document.getElementById('ct-chat-conv-titulo');
+    var sub = document.getElementById('ct-chat-conv-sub');
+    if(titulo) titulo.textContent = c.nombre || 'Chat';
+    if(sub){
+      if(c.esGlobalTodos) sub.textContent = 'Todos los miembros';
+      else if(c.esGlobalRol) sub.textContent = 'Solo ' + (_ctChatRoles[c.rolPermitido]||{label:c.rolPermitido}).label;
+      else if(c.tipo === 'directo'){
+        var otroUid = (c.miembros||[]).filter(function(u){ return u !== _ctUid; })[0];
+        if(otroUid){
+          sub.textContent = 'Cargando...';
+          _ctChatCargarUsuario(otroUid, function(u){
+            if(sub) sub.textContent = (_ctChatRoles[u.rol]||{label:u.rol||''}).label + (u.online?' · en línea':'');
+          });
+        } else sub.textContent = '';
+      } else sub.textContent = (c.miembros||[]).length + ' miembros';
+    }
+    _ctChatSuscribirMensajes(chatId);
+  }).catch(function(e){
+    showToast('⚠️ Error: ' + e.message);
+  });
+};
+
+window.cerrarChatConversacionCT = function(){
+  var m = document.getElementById('ct-chat-modal-conversacion');
+  if(m) m.style.display = 'none';
+  if(_ctChatMsgSub){ _ctChatMsgSub(); _ctChatMsgSub = null; }
+  _ctChatChatActual = null;
+  _ctChatDesbloquearScroll();
+  _ctChatRenderInbox();
+};
+
+// ── Suscripción a mensajes (con precarga de usuarios) ──────
+function _ctChatSuscribirMensajes(chatId){
+  if(_ctChatMsgSub){ _ctChatMsgSub(); _ctChatMsgSub = null; }
+  var cont = document.getElementById('ct-chat-conv-mensajes');
+  if(cont) cont.innerHTML = '<div style="text-align:center;color:var(--text-secondary);font-size:0.78rem;padding:30px">Cargando mensajes...</div>';
+
+  _ctChatMsgSub = _ctDb.collection('chats').doc(chatId).collection('mensajes')
+    .orderBy('timestamp','asc').limitToLast(100)
+    .onSnapshot(function(snap){
+      var uidsNecesitados = {};
+      var mensajes = [];
+      snap.forEach(function(doc){
+        var m = doc.data(); m.id = doc.id;
+        mensajes.push(m);
+        if(m.autorUid && (!m.autorRol || !m.autorHandle) && !_ctChatUsuariosCache[m.autorUid]){
+          uidsNecesitados[m.autorUid] = true;
+        }
+      });
+
+      function renderFinal(){
+        var html = '';
+        mensajes.forEach(function(m){
+          if(m.autorUid && _ctChatUsuariosCache[m.autorUid]){
+            var u = _ctChatUsuariosCache[m.autorUid];
+            if(!m.autorRol && u.rol) m.autorRol = u.rol;
+            if(!m.autorHandle && u.handle) m.autorHandle = u.handle;
+            if(!m.autorNombre && u.nombre) m.autorNombre = u.nombre;
+          }
+          html += _ctChatRenderMensaje(m);
+        });
+        if(cont){
+          if(!html) html = '<div style="text-align:center;color:var(--text-secondary);font-size:0.78rem;padding:30px">👋 ¡Sé el primero en escribir!</div>';
+          cont.innerHTML = html;
+          cont.scrollTop = cont.scrollHeight;
+        }
+      }
+
+      var uidsPendientes = Object.keys(uidsNecesitados);
+      if(uidsPendientes.length === 0){
+        renderFinal();
+      } else {
+        var cargados = 0;
+        uidsPendientes.forEach(function(uid){
+          _ctDb.collection('chat_usuarios').doc(uid).get().then(function(doc){
+            if(doc.exists){
+              _ctChatUsuariosCache[uid] = doc.data();
+              _ctChatUsuariosCache[uid].uid = uid;
+            } else {
+              _ctChatUsuariosCache[uid] = { uid:uid, nombre:'Usuario', rol:null };
+            }
+            cargados++;
+            if(cargados === uidsPendientes.length) renderFinal();
+          }).catch(function(){
+            _ctChatUsuariosCache[uid] = { uid:uid, nombre:'Usuario', rol:null };
+            cargados++;
+            if(cargados === uidsPendientes.length) renderFinal();
+          });
+        });
+        setTimeout(function(){
+          if(cargados < uidsPendientes.length) renderFinal();
+        }, 2000);
+      }
+    }, function(err){
+      if(cont) cont.innerHTML = '<div style="text-align:center;color:#EF4444;font-size:0.78rem;padding:30px">⚠️ '+(err.message||'Error')+'</div>';
+    });
+}
+
+function _ctChatRenderMensaje(m){
+  var esMio = m.autorUid === _ctUid;
+  var d = new Date(m.timestamp || 0);
+  var tiempoTxt = d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+  if(m.tipo === 'sistema'){
+    return '<div style="background:rgba(245,158,11,0.12);color:#F59E0B;border:1px dashed rgba(245,158,11,0.4);align-self:center;font-size:0.72rem;padding:6px 12px;border-radius:14px;text-align:center;margin:4px 0">'+(m.texto||'')+'</div>';
+  }
+  var rolConfig = {
+    admin:     { emoji:'👑', label:'ADMIN',   color:'#EF4444', bg:'rgba(239,68,68,0.15)' },
+    moderador: { emoji:'🛡️', label:'MOD',     color:'#8B5CF6', bg:'rgba(139,92,246,0.15)' },
+    motorista: { emoji:'🛵', label:null,      color:'#06B6D4', bg:'rgba(6,182,212,0.15)' },
+    venta:     { emoji:'💼', label:'VENTA',   color:'#10B981', bg:'rgba(16,185,129,0.15)' },
+    almacen:   { emoji:'📦', label:'ALMACÉN', color:'#F97316', bg:'rgba(249,115,22,0.15)' }
+  };
+  var rc = rolConfig[m.autorRol] || { emoji:'💬', label:null, color:'#888', bg:'rgba(128,128,128,0.15)' };
+  var nombreVisible = esMio ? 'Tú' : (m.autorNombre || 'Alguien');
+  var aliasTxt = '';
+  if(!esMio && m.autorRol === 'motorista' && m.autorHandle){
+    aliasTxt = ' <span style="font-size:0.6rem;opacity:0.7;color:'+rc.color+'">'+m.autorHandle+'</span>';
+  }
+  var badgeTxt = '';
+  if(!esMio && rc.label){
+    badgeTxt = ' <span style="display:inline-block;padding:1px 5px;background:'+rc.bg+';color:'+rc.color+';border-radius:6px;font-size:0.55rem;font-weight:800;letter-spacing:0.05em;margin-left:4px;vertical-align:middle">'+rc.emoji+' '+rc.label+'</span>';
+  } else if(!esMio && m.autorRol === 'motorista'){
+    badgeTxt = ' <span style="display:inline-block;padding:1px 5px;background:'+rc.bg+';color:'+rc.color+';border-radius:6px;font-size:0.55rem;font-weight:800;letter-spacing:0.05em;margin-left:4px;vertical-align:middle">'+rc.emoji+'</span>';
+  }
+  var autorHtml = '';
+  if(!esMio){
+    autorHtml = '<div style="font-size:0.65rem;font-weight:800;margin-bottom:3px;">'+
+                '<span style="color:'+rc.color+'">'+nombreVisible+'</span>'+
+                aliasTxt + badgeTxt +
+                '</div>';
+  }
+  return '<div style="display:flex;flex-direction:column;align-items:'+(esMio?'flex-end':'flex-start')+';margin-bottom:4px">'+
+    '<div style="max-width:80%;padding:9px 12px;border-radius:14px;font-size:0.85rem;line-height:1.35;word-wrap:break-word;white-space:pre-wrap;'+(esMio?'background:linear-gradient(135deg,var(--accent),var(--accent-dark,#1d4ed8));color:#fff;border-bottom-right-radius:4px':'background:var(--input-bg,rgba(255,255,255,0.04));color:var(--text-primary);border:1px solid var(--border-color);border-bottom-left-radius:4px')+'">'+
+      autorHtml+
+      (m.texto||'')+
+    '</div>'+
+    '<div style="font-size:0.62rem;color:var(--text-secondary);margin-top:3px">'+tiempoTxt+'</div>'+
+  '</div>';
+}
+
+// ── Enviar mensaje ──────────────────────────────────────────
+window.chatEnviarMensajeCT = function(){
+  if(!_ctChatChatActual){ showToast('⚠️ Sin chat activo'); return; }
+  var inp = document.getElementById('ct-chat-conv-input');
+  if(!inp) return;
+  var txt = inp.value.trim();
+  if(!txt) return;
+  if(!_ctDb || !_ctUid || !_ctChatPerfil){ showToast('⚠️ Sin sesión de chat'); return; }
+
+  var msg = {
+    texto: txt.substring(0, 2000),
+    autorUid: _ctUid,
+    autorNombre: _ctChatPerfil.nombre,
+    autorRol: _ctChatPerfil.rol,
+    autorHandle: _ctChatPerfil.handle || '',
+    tipo: 'texto',
+    timestamp: Date.now()
+  };
+  inp.value = '';
+  inp.style.height = 'auto';
+  _ctDb.collection('chats').doc(_ctChatChatActual).collection('mensajes').add(msg)
+    .then(function(){
+      _ctDb.collection('chats').doc(_ctChatChatActual).set({
+        ultimoMsg: { texto: txt.substring(0,80), autorUid: _ctUid, autorNombre: _ctChatPerfil.nombre, autorRol: _ctChatPerfil.rol, ts: msg.timestamp }
+      }, {merge:true}).catch(function(){});
+    })
+    .catch(function(e){
+      showToast('⚠️ Error: ' + e.message);
+      inp.value = txt;
+    });
+};
+
+// ── Cargar usuario (cache) ──────────────────────────────────
+function _ctChatCargarUsuario(uid, cb){
+  if(_ctChatUsuariosCache[uid]){ cb(_ctChatUsuariosCache[uid]); return; }
+  if(!_ctDb){ cb({}); return; }
+  _ctDb.collection('chat_usuarios').doc(uid).get().then(function(doc){
+    var u = doc.exists ? doc.data() : { uid:uid, nombre:'Desconocido' };
+    _ctChatUsuariosCache[uid] = u;
+    cb(u);
+  }).catch(function(){ cb({}); });
+}
+
+// ── Nuevo chat directo ──────────────────────────────────────
+window.abrirNuevoChatDirectoCT = function(){
+  if(!_ctDb || !_ctChatPerfil){ showToast('⚠️ Sin sesión'); return; }
+  _ctDb.collection('chat_usuarios').limit(50).get().then(function(snap){
+    if(snap.empty){ showToast('📭 No hay otros usuarios'); return; }
+    var usuarios = [];
+    snap.forEach(function(doc){
+      var u = doc.data(); u.uid = doc.id;
+      if(u.uid !== _ctUid) usuarios.push(u);
+    });
+    if(usuarios.length === 0){ showToast('📭 No hay otros usuarios'); return; }
+    var ov = document.createElement('div');
+    ov.id = 'ct-chat-overlay-nuevo-directo';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10700;display:flex;align-items:flex-end;justify-content:center';
+    var sh = document.createElement('div');
+    sh.style.cssText = 'background:var(--bg-card,#1a1a2e);border-radius:24px 24px 0 0;width:100%;max-width:430px;padding:16px 16px calc(30px + env(safe-area-inset-bottom,0px));border-top:3px solid var(--accent);max-height:80vh;overflow-y:auto;-webkit-overflow-scrolling:touch';
+    var h = '<div style="font-size:1.05rem;font-weight:800;color:var(--text-primary);margin-bottom:12px;padding:0 4px">💬 Nuevo chat directo</div>';
+    usuarios.forEach(function(u){
+      var r = _ctChatRoles[u.rol] || { label:u.rol||'', color:'#888' };
+      var av = u.fotoURL ? '<img src="'+u.fotoURL+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover">' : '👤';
+      h += '<div onclick="ctChatCrearDirecto(\''+u.uid+'\')" style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--input-bg,rgba(255,255,255,0.04));border:1px solid var(--border-color);border-radius:10px;margin-bottom:6px;cursor:pointer;-webkit-tap-highlight-color:transparent">'+
+           '<div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-dark,#1d4ed8));display:flex;align-items:center;justify-content:center;font-size:1rem;overflow:hidden">'+av+'</div>'+
+           '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:0.88rem;color:var(--text-primary)">'+(u.nombre||'')+'</div>'+
+           '<div style="font-size:0.68rem;color:'+r.color+'">'+r.label+(u.handle?' · '+u.handle:'')+'</div></div>'+
+           '</div>';
+    });
+    h += '<button onclick="ctChatCerrarOverlayNuevoDirecto()" style="width:100%;padding:11px;margin-top:6px;background:var(--input-bg,rgba(255,255,255,0.04));border:1px solid var(--border-color);border-radius:10px;color:var(--text-secondary);font-weight:700;cursor:pointer;font-family:inherit">Cancelar</button>';
+    sh.innerHTML = h;
+    ov.appendChild(sh);
+    ov.onclick = function(e){ if(e.target === ov) ov.remove(); };
+    document.body.appendChild(ov);
+  }).catch(function(e){
+    showToast('⚠️ Error: ' + e.message);
+  });
+};
+
+window.ctChatCerrarOverlayNuevoDirecto = function(){
+  var ov = document.getElementById('ct-chat-overlay-nuevo-directo');
+  if(ov) ov.remove();
+};
+
+window.ctChatCrearDirecto = function(otroUid){
+  var arr = [_ctUid, otroUid].sort();
+  var chatId = 'directo_' + arr[0] + '_' + arr[1];
+  _ctDb.collection('chats').doc(chatId).set({
+    tipo:'directo', nombre:'Chat directo', miembros:[_ctUid, otroUid], creadoEn:Date.now()
+  }, {merge:true}).then(function(){
+    ctChatCerrarOverlayNuevoDirecto();
+    abrirChatConversacionCT(chatId);
+  }).catch(function(e){
+    showToast('⚠️ Error: ' + e.message);
+  });
+};
+
+// ── 🚨 Informar al equipo sobre un cliente ──────────────────
+// Genera un mensaje pre-llenado con los datos del cliente y permite enviarlo a cualquier chat
+window.informarAlEquipoCT = function(clientId){
+  if(!_ctDb || !_ctUid){
+    showToast('⚠️ Sin conexión Firebase');
+    return;
+  }
+  var cliente = (state.clients || []).find(function(c){ return c.id === clientId; });
+  if(!cliente){ showToast('⚠️ Cliente no encontrado'); return; }
+
+  _ctChatCargarPerfil(function(perfil){
+    if(!perfil){
+      showToastLargoCT('⚠️ Primero debes registrarte en el chat interno de RiderTrack (botón 💬 en RiderTrack).');
+      return;
+    }
+    _ctInformarClienteId = clientId;
+
+    // Construir mensaje pre-llenado
+    var msg = '🚨 AVISO SOBRE CLIENTE\n\n';
+    msg += '👤 Cliente: ' + (cliente.name || '—') + '\n';
+    msg += '📦 Producto: ' + (cliente.product || '—') + '\n';
+    msg += '📍 Dirección: ' + (cliente.address || '—') + '\n';
+    msg += '🏘️ Distrito: ' + (cliente.district || '—') + '\n';
+    msg += '📞 Teléfono: ' + (cliente.phone || '—') + '\n';
+    msg += '💰 A cobrar: S/ ' + (cliente.cobrar || 0) + '\n';
+    msg += '⏰ Estado: ' + (cliente.status || 'Pendiente') + '\n';
+    if(cliente.observation) msg += '📝 Notas: ' + cliente.observation + '\n';
+    msg += '\n— Enviado desde ClienteTrack por ' + (perfil.nombre || 'Admin');
+
+    // Mostrar preview
+    var preview = document.getElementById('ct-informar-preview');
+    if(preview) preview.textContent = msg;
+    _ctInformarMensajePrellenado = msg;
+
+    // Cargar lista de chats disponibles
+    _ctChatSuscribirInbox();
+    setTimeout(function(){ _ctRenderListaInformar(); }, 800);
+
+    // Abrir modal
+    var m = document.getElementById('ct-chat-modal-informar');
+    if(m){ m.style.display = 'flex'; _ctChatBloquearScroll(); }
+  });
+};
+
+var _ctInformarMensajePrellenado = '';
+
+function _ctRenderListaInformar(){
+  var cont = document.getElementById('ct-informar-chats-list');
+  if(!cont) return;
+  if(!_ctChatInboxData || _ctChatInboxData.length === 0){
+    cont.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:0.78rem">📭 No tienes chats disponibles.<br>Los chats aparecen automáticamente al registrarte en RiderTrack.</div>';
+    return;
+  }
+  var h = '';
+  _ctChatInboxData.forEach(function(c){
+    var avatar = '💬';
+    if(c.esGlobalTodos) avatar = '📣';
+    else if(c.esGlobalRol) avatar = (_ctChatRoles[c.rolPermitido] || {label:'💬'}).label.split(' ')[0];
+    else if(c.tipo === 'directo') avatar = '👤';
+    h += '<div onclick="ctInformarEnviarA(\''+c.id+'\')" style="display:flex;align-items:center;gap:10px;padding:11px;background:var(--input-bg,rgba(255,255,255,0.04));border:1px solid var(--border-color);border-radius:10px;margin-bottom:6px;cursor:pointer;-webkit-tap-highlight-color:transparent">'+
+         '<div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-dark,#1d4ed8));display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0">'+avatar+'</div>'+
+         '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:0.88rem;color:var(--text-primary)">'+(c.nombre||'Chat')+'</div>'+
+         '<div style="font-size:0.68rem;color:var(--text-secondary)">'+(c.esGlobalTodos?'Todos':c.esGlobalRol?('Solo '+(_ctChatRoles[c.rolPermitido]||{label:c.rolPermitido}).label):'Chat directo')+'</div></div>'+
+         '<span style="font-size:0.9rem;color:var(--accent)">➤</span>'+
+         '</div>';
+  });
+  cont.innerHTML = h;
+}
+
+window.ctInformarEnviarA = function(chatId){
+  if(!_ctInformarMensajePrellenado){ showToast('⚠️ No hay mensaje pre-llenado'); return; }
+  if(!_ctChatPerfil){ showToast('⚠️ Sin sesión de chat'); return; }
+  var msg = {
+    texto: _ctInformarMensajePrellenado,
+    autorUid: _ctUid,
+    autorNombre: _ctChatPerfil.nombre,
+    autorRol: _ctChatPerfil.rol,
+    autorHandle: _ctChatPerfil.handle || '',
+    tipo: 'texto',
+    timestamp: Date.now()
+  };
+  _ctDb.collection('chats').doc(chatId).collection('mensajes').add(msg)
+    .then(function(){
+      _ctDb.collection('chats').doc(chatId).set({
+        ultimoMsg: { texto: '🚨 Aviso sobre cliente: ' + ((state.clients||[]).find(function(c){return c.id===_ctInformarClienteId;})||{}).name || '', autorUid: _ctUid, autorNombre: _ctChatPerfil.nombre, autorRol: _ctChatPerfil.rol, ts: msg.timestamp }
+      }, {merge:true}).catch(function(){});
+      showToast('✅ Aviso enviado al equipo');
+      cerrarInformarEquipoCT();
+    })
+    .catch(function(e){
+      showToast('⚠️ Error: ' + e.message);
+    });
+};
+
+window.cerrarInformarEquipoCT = function(){
+  var m = document.getElementById('ct-chat-modal-informar');
+  if(m) m.style.display = 'none';
+  _ctChatDesbloquearScroll();
+  _ctInformarClienteId = null;
+  _ctInformarMensajePrellenado = '';
+};
+
+// ── Toast largo (similar a RiderTrack) ──────────────────────
+function showToastLargoCT(msg){
+  var t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1E1E24;color:#fff;padding:12px 20px;border-radius:16px;font-size:0.8rem;font-weight:700;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,0.4);max-width:85vw;text-align:center;white-space:pre-line';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function(){ t.remove(); }, 5000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// ║  FASE C — Calendario de reprogramados + Recordatorios      ║
+// ║  de cobro con @capacitor/local-notifications                ║
+// ═══════════════════════════════════════════════════════════
+
+// ── CALENDARIO DE REPROGRAMADOS ─────────────────────────────
+var _ctCalMesActual = new Date().getMonth();
+var _ctCalAnoActual = new Date().getFullYear();
+var _ctCalScrollY = 0;
+
+window.abrirCalendarioReprogCT = function(){
+  var m = document.getElementById('ct-modal-calendario-reprog');
+  if(!m) return;
+  m.style.display = 'flex';
+  _ctCalScrollY = window.scrollY || 0;
+  document.body.style.position = 'fixed';
+  document.body.style.top = '-' + _ctCalScrollY + 'px';
+  document.body.style.width = '100%';
+  // Renderizar días de la semana
+  var diasSemana = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  var dsEl = document.getElementById('ct-cal-dias-semana');
+  if(dsEl){
+    dsEl.innerHTML = diasSemana.map(function(d){
+      return '<div style="text-align:center;font-size:0.62rem;font-weight:800;color:var(--text-secondary);padding:4px 0">'+d+'</div>';
+    }).join('');
+  }
+  renderCalendarioReprogCT();
+};
+
+window.cerrarCalendarioReprogCT = function(){
+  var m = document.getElementById('ct-modal-calendario-reprog');
+  if(m) m.style.display = 'none';
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, _ctCalScrollY);
+};
+
+window.cambiarMesCalendarioCT = function(delta){
+  _ctCalMesActual += delta;
+  if(_ctCalMesActual < 0){ _ctCalMesActual = 11; _ctCalAnoActual--; }
+  if(_ctCalMesActual > 11){ _ctCalMesActual = 0; _ctCalAnoActual++; }
+  renderCalendarioReprogCT();
+};
+
+function renderCalendarioReprogCT(){
+  // Título del mes
+  var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var titEl = document.getElementById('ct-cal-titulo');
+  if(titEl) titEl.textContent = meses[_ctCalMesActual] + ' ' + _ctCalAnoActual;
+
+  // Obtener TODOS los estados de agenda (reprogramados, fallidos, rechazados, etc.)
+  var reprog = (state.clients||[]).filter(function(c){
+    return CT_ESTADOS_AGENDA.indexOf(c.status || '') !== -1;
+  });
+
+  // Normalizar fechas a YYYY-MM-DD (los reprogFecha pueden venir en distintos formatos)
+  var reprogPorFecha = {};
+  var hoyStr = _ctCalFechaToStr(new Date());
+  reprog.forEach(function(c){
+    var f = _ctNormalizarFecha(c.reprogFecha);
+    if(!f) return;
+    if(!reprogPorFecha[f]) reprogPorFecha[f] = [];
+    reprogPorFecha[f].push(c);
+  });
+
+  // Construir grid del mes (empezando en lunes)
+  var primerDia = new Date(_ctCalAnoActual, _ctCalMesActual, 1);
+  var ultimoDia = new Date(_ctCalAnoActual, _ctCalMesActual + 1, 0);
+  var diasEnMes = ultimoDia.getDate();
+  // 0=Dom, 1=Lun... convertir a L=0, M=1... D=6
+  var primerDiaSemana = (primerDia.getDay() + 6) % 7;
+
+  var grid = '';
+  // Espacios vacíos al inicio
+  for(var i = 0; i < primerDiaSemana; i++){
+    grid += '<div style="aspect-ratio:1"></div>';
+  }
+  for(var dia = 1; dia <= diasEnMes; dia++){
+    var fechaStr = _ctCalAnoActual + '-' + String(_ctCalMesActual+1).padStart(2,'0') + '-' + String(dia).padStart(2,'0');
+    var reprogDia = reprogPorFecha[fechaStr] || [];
+    var esHoy = fechaStr === hoyStr;
+    var tieneReprog = reprogDia.length > 0;
+    var muchos = reprogDia.length >= 3;
+
+    // Determinar color dominante del día (estado más frecuente)
+    var colorDominante = '#8B5CF6';  // Por defecto morado (reprogramado)
+    var bgDominante = 'rgba(139,92,246,0.15)';
+    var borderDominante = '#8B5CF6';
+    if(tieneReprog){
+      // Contar estados
+      var cuentaEstados = {};
+      reprogDia.forEach(function(c){
+        var st = c.status || 'Otro';
+        if(!cuentaEstados[st]) cuentaEstados[st] = 0;
+        cuentaEstados[st]++;
+      });
+      // Encontrar el más frecuente
+      var maxSt = null, maxCount = 0;
+      Object.keys(cuentaEstados).forEach(function(st){
+        if(cuentaEstados[st] > maxCount){ maxCount = cuentaEstados[st]; maxSt = st; }
+      });
+      if(maxSt && CT_ESTADOS_CONFIG[maxSt]){
+        colorDominante = CT_ESTADOS_CONFIG[maxSt].color;
+        bgDominante = CT_ESTADOS_CONFIG[maxSt].bg.replace(/0\.08\)/, '0.18)');
+        borderDominante = CT_ESTADOS_CONFIG[maxSt].color;
+      }
+    }
+
+    var bgColor = 'var(--input-bg, rgba(255,255,255,0.04))';
+    var borderColor = 'var(--border-color)';
+    var textColor = 'var(--text-primary)';
+    if(esHoy && !tieneReprog){
+      bgColor = 'rgba(239,68,68,0.15)';
+      borderColor = '#EF4444';
+    } else if(tieneReprog){
+      bgColor = bgDominante;
+      borderColor = borderDominante;
+      if(esHoy) borderColor = '#EF4444';  // Hoy siempre con borde rojo
+    }
+
+    grid += '<div onclick="seleccionarDiaCalendarioCT(\''+fechaStr+'\')" style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:'+bgColor+';border:1px solid '+borderColor+';border-radius:8px;cursor:pointer;position:relative;font-weight:'+(esHoy?'800':'700')+';color:'+textColor+';font-size:0.78rem;-webkit-tap-highlight-color:transparent">';
+    grid += '<span>' + dia + '</span>';
+    if(tieneReprog){
+      grid += '<span style="position:absolute;bottom:3px;font-size:0.55rem;color:'+colorDominante+';font-weight:800">'+reprogDia.length+'</span>';
+    }
+    grid += '</div>';
+  }
+
+  var gridEl = document.getElementById('ct-cal-grid');
+  if(gridEl) gridEl.innerHTML = grid;
+
+  // Actualizar leyenda dinámicamente
+  var leyenda = document.querySelector('#ct-modal-calendario-reprog .leyenda-dinamica');
+  // Ocultar detalle al cambiar de mes
+  var det = document.getElementById('ct-cal-detalle');
+  if(det) det.style.display = 'none';
+}
+
+window.seleccionarDiaCalendarioCT = function(fechaStr){
+  var reprog = (state.clients||[]).filter(function(c){
+    return CT_ESTADOS_AGENDA.indexOf(c.status || '') !== -1 && _ctNormalizarFecha(c.reprogFecha) === fechaStr;
+  });
+  var det = document.getElementById('ct-cal-detalle');
+  var fechaLabel = document.getElementById('ct-cal-detalle-fecha');
+  var lista = document.getElementById('ct-cal-detalle-lista');
+  if(!det) return;
+
+  // Formatear fecha para mostrar
+  var partes = fechaStr.split('-');
+  var fechaDisplay = partes[2] + '/' + partes[1] + '/' + partes[0];
+  if(fechaLabel) fechaLabel.textContent = '📅 ' + fechaDisplay + ' (' + reprog.length + ' cliente' + (reprog.length!==1?'s':'') + ')';
+
+  if(reprog.length === 0){
+    if(lista) lista.innerHTML = '<div style="text-align:center;padding:14px;color:var(--text-secondary);font-size:0.78rem">📭 Sin clientes este día</div>';
+  } else {
+    if(lista){
+      var h = '';
+      reprog.forEach(function(c){
+        var cfg = CT_ESTADOS_CONFIG[c.status] || { emoji:'•', color:'var(--text-secondary)', bg:'rgba(128,128,128,0.08)', border:'rgba(128,128,128,0.3)' };
+        h += '<div style="background:'+cfg.bg+';border:1px solid '+cfg.border+';border-radius:10px;padding:10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">'
+           + '<div style="flex:1;min-width:0">'
+           + '<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">'
+           + '<span style="font-size:0.65rem;font-weight:800;color:'+cfg.color+';background:'+cfg.bg+';padding:1px 5px;border-radius:4px;border:1px solid '+cfg.border+'">'+cfg.emoji+' '+c.status+'</span>'
+           + '<span style="font-weight:700;font-size:0.82rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(c.name||'—')+'</span>'
+           + '</div>'
+           + '<div style="font-size:0.68rem;color:var(--text-secondary);margin-top:1px">'+(c.product||'')+(c.reprogHora?' · ⏰ '+c.reprogHora:'')+'</div>'
+           + (c.reprogNota?'<div style="font-size:0.65rem;color:var(--text-secondary);margin-top:2px;font-style:italic">'+c.reprogNota+'</div>':'')
+           + '</div>'
+           + '<div style="display:flex;gap:5px;margin-left:8px">'
+           + '<button onclick="llamarCliente(\''+(c.phone||'')+'\')" style="padding:6px 8px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:7px;color:#10B981;font-size:0.75rem;cursor:pointer">📞</button>'
+           + '<button onclick="openWhatsApp(\''+(c.phone||'')+'\')" style="padding:6px 8px;background:rgba(37,211,102,0.15);border:1px solid rgba(37,211,102,0.3);border-radius:7px;color:#25D366;font-size:0.75rem;cursor:pointer">💬</button>'
+           + '</div>'
+           + '</div>';
+      });
+      lista.innerHTML = h;
+    }
+  }
+  det.style.display = 'block';
+};
+
+// Helper: convertir Date a string YYYY-MM-DD
+function _ctCalFechaToStr(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+// Helper: normalizar cualquier formato de fecha a YYYY-MM-DD
+function _ctNormalizarFecha(f){
+  if(!f) return null;
+  f = String(f).trim();
+  // Ya está en YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}$/.test(f)) return f;
+  // Formato DD/MM/YYYY (es-PE)
+  if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(f)){
+    var partes = f.split('/');
+    return partes[2] + '-' + partes[1].padStart(2,'0') + '-' + partes[0].padStart(2,'0');
+  }
+  // Intentar parsear
+  var d = new Date(f);
+  if(!isNaN(d.getTime())) return _ctCalFechaToStr(d);
+  return null;
+}
+
+// ── RECORDATORIOS DE COBRO ──────────────────────────────────
+var _ctRecScrollY = 0;
+var _ctRecClienteActual = null;
+
+// Inicializar recordatorios en state si no existen
+if(!state.recordatorios) state.recordatorios = [];
+
+window.abrirRecordatorioCobro = function(clientId){
+  var cliente = (state.clients||[]).find(function(c){ return c.id === clientId; });
+  if(!cliente){ showToast('⚠️ Cliente no encontrado'); return; }
+  _ctRecClienteActual = cliente;
+
+  var m = document.getElementById('ct-modal-recordatorio');
+  if(!m) return;
+  m.style.display = 'flex';
+  _ctRecScrollY = window.scrollY || 0;
+  document.body.style.position = 'fixed';
+  document.body.style.top = '-' + _ctRecScrollY + 'px';
+  document.body.style.width = '100%';
+
+  // Llenar datos del cliente
+  var nombreEl = document.getElementById('ct-rec-cliente-nombre');
+  if(nombreEl) nombreEl.textContent = 'Cliente: ' + (cliente.name || '—');
+  var montoEl = document.getElementById('ct-rec-monto');
+  if(montoEl) montoEl.textContent = 'S/ ' + (cliente.cobrar || 0);
+
+  // Fecha por defecto: mañana
+  var manana = new Date(Date.now() + 86400000);
+  var fechaDef = _ctCalFechaToStr(manana);
+  var fechaInp = document.getElementById('ct-rec-fecha');
+  if(fechaInp) fechaInp.value = fechaDef;
+  var horaInp = document.getElementById('ct-rec-hora');
+  if(horaInp) horaInp.value = '09:00';
+  var notaInp = document.getElementById('ct-rec-nota');
+  if(notaInp) notaInp.value = '';
+
+  // Listar recordatorios existentes de este cliente
+  _ctRenderRecordatorios();
+};
+
+window.cerrarRecordatorioCobro = function(){
+  var m = document.getElementById('ct-modal-recordatorio');
+  if(m) m.style.display = 'none';
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, _ctRecScrollY);
+  _ctRecClienteActual = null;
+};
+
+function _ctRenderRecordatorios(){
+  var lista = document.getElementById('ct-rec-lista');
+  if(!lista) return;
+  if(!_ctRecClienteActual){ lista.innerHTML = ''; return; }
+  var recs = (state.recordatorios||[]).filter(function(r){
+    return r.clienteId === _ctRecClienteActual.id;
+  });
+  if(recs.length === 0){
+    lista.innerHTML = '<div style="text-align:center;padding:14px;color:var(--text-secondary);font-size:0.75rem">📭 Sin recordatorios para este cliente</div>';
+    return;
+  }
+  // Ordenar por fecha
+  recs.sort(function(a,b){
+    return (a.timestamp||0) - (b.timestamp||0);
+  });
+  var ahora = Date.now();
+  var h = '';
+  recs.forEach(function(r){
+    var esFuturo = (r.timestamp||0) > ahora;
+    var fechaStr = new Date(r.timestamp||0).toLocaleDateString('es-PE',{weekday:'short',day:'2-digit',month:'short'});
+    var horaStr = r.hora ? (' · ⏰ '+r.hora) : '';
+    var bgC = esFuturo ? 'rgba(245,158,11,0.08)' : 'rgba(100,116,139,0.08)';
+    var borderC = esFuturo ? 'rgba(245,158,11,0.3)' : 'rgba(100,116,139,0.2)';
+    var txtC = esFuturo ? 'var(--text-primary)' : 'var(--text-secondary)';
+    h += '<div style="background:'+bgC+';border:1px solid '+borderC+';border-radius:10px;padding:10px;display:flex;justify-content:space-between;align-items:center">'
+       + '<div style="flex:1;min-width:0">'
+       + '<div style="font-size:0.78rem;font-weight:700;color:'+txtC+'">📅 '+fechaStr+horaStr+(esFuturo?'':' ✅ Pasado')+'</div>'
+       + (r.nota?'<div style="font-size:0.68rem;color:var(--text-secondary);margin-top:3px;font-style:italic">'+r.nota+'</div>':'')
+       + '</div>'
+       + '<button onclick="borrarRecordatorioCT('+r.id+')" style="padding:6px 9px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);border-radius:7px;color:#EF4444;font-size:0.7rem;cursor:pointer;flex-shrink:0">🗑️</button>'
+       + '</div>';
+  });
+  lista.innerHTML = h;
+}
+
+window.guardarRecordatorioCT = function(){
+  if(!_ctRecClienteActual){ showToast('⚠️ Sin cliente seleccionado'); return; }
+  var fecha = document.getElementById('ct-rec-fecha').value;
+  var hora = document.getElementById('ct-rec-hora').value;
+  var nota = document.getElementById('ct-rec-nota').value.trim();
+  if(!fecha){ showToast('⚠️ Ingresa una fecha'); return; }
+
+  // Calcular timestamp
+  var fechaHora = fecha + 'T' + (hora || '09:00') + ':00';
+  var d = new Date(fechaHora);
+  if(isNaN(d.getTime())){ showToast('⚠️ Fecha inválida'); return; }
+  var timestamp = d.getTime();
+
+  var rec = {
+    id: Date.now(),
+    clienteId: _ctRecClienteActual.id,
+    clienteNombre: _ctRecClienteActual.name || '',
+    clientePhone: _ctRecClienteActual.phone || '',
+    cobrar: _ctRecClienteActual.cobrar || 0,
+    fecha: fecha,
+    hora: hora || '',
+    nota: nota,
+    timestamp: timestamp,
+    creadoEn: Date.now()
+  };
+
+  if(!state.recordatorios) state.recordatorios = [];
+  state.recordatorios.push(rec);
+  saveState();
+
+  // Programar notificación local
+  _ctProgramarNotificacionLocal(rec);
+
+  // Limpiar form
+  document.getElementById('ct-rec-nota').value = '';
+  showToast('✅ Recordatorio guardado para el ' + fecha + (hora ? ' a las ' + hora : ''));
+
+  // Actualizar lista
+  _ctRenderRecordatorios();
+};
+
+window.borrarRecordatorioCT = function(recId){
+  if(!confirm('¿Borrar este recordatorio?')) return;
+  state.recordatorios = (state.recordatorios||[]).filter(function(r){
+    return r.id !== recId;
+  });
+  saveState();
+  // Cancelar notificación local
+  _ctCancelarNotificacionLocal(recId);
+  showToast('🗑️ Recordatorio borrado');
+  _ctRenderRecordatorios();
+};
+
+// ── Notificaciones locales con @capacitor/local-notifications ──
+function _ctEsCapacitor(){
+  return typeof window.Capacitor !== 'undefined' && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications;
+}
+
+function _ctProgramarNotificacionLocal(rec){
+  if(!_ctEsCapacitor()){
+    // Web: usar Notification API si está disponible
+    if('Notification' in window && Notification.permission === 'granted'){
+      var now = Date.now();
+      var delay = (rec.timestamp||0) - now;
+      if(delay > 0 && delay < 2147483647){
+        setTimeout(function(){
+          new Notification('🔔 Recordatorio de cobro', {
+            body: 'Cobrar a ' + (rec.clienteNombre||'') + ' · S/ ' + (rec.cobrar||0) + (rec.nota?'\n'+rec.nota:''),
+            icon: 'https://ridertrack.github.io/icon.png'
+          });
+        }, delay);
+      }
+    }
+    return;
+  }
+  var plugin = window.Capacitor.Plugins.LocalNotifications;
+  // Pedir permiso
+  plugin.requestPermissions().then(function(){
+    var now = Date.now();
+    var at = new Date(rec.timestamp || 0);
+    // Capacitor requiere milisegundos
+    if(at.getTime() <= now){
+      // Si la fecha ya pasó, no programar
+      return;
+    }
+    plugin.schedule({
+      notifications: [{
+        id: rec.id,
+        title: '🔔 Recordatorio de cobro',
+        body: 'Cobrar a ' + (rec.clienteNombre||'') + ' · S/ ' + (rec.cobrar||0) + (rec.nota?'\n'+rec.nota:''),
+        schedule: { at: at },
+        smallIcon: 'ic_stat_icon',
+        largeIcon: 'ic_launcher'
+      }]
+    }).then(function(){
+      console.log('Notificación programada:', rec.id);
+    }).catch(function(e){
+      console.warn('Error programando notificación:', e);
+    });
+  }).catch(function(){});
+}
+
+function _ctCancelarNotificacionLocal(recId){
+  if(!_ctEsCapacitor()) return;
+  var plugin = window.Capacitor.Plugins.LocalNotifications;
+  plugin.cancel({ notifications: [{ id: recId }] }).catch(function(){});
+}
+
+// ── Al iniciar la app: pedir permiso notificaciones + verificar pendientes ──
+(function initRecordatoriosCT(){
+  setTimeout(function(){
+    // Pedir permiso si es web
+    if('Notification' in window && Notification.permission === 'default'){
+      // No pedir automáticamente — solo cuando el usuario guarde el primer recordatorio
+    }
+    // Si es Capacitor, registrar canal
+    if(_ctEsCapacitor()){
+      var plugin = window.Capacitor.Plugins.LocalNotifications;
+      plugin.createChannel({
+        id: 'recordatorios_cobro',
+        name: 'Recordatorios de cobro',
+        description: 'Notificaciones de recordatorios de cobro de ClienteTrack',
+        importance: 4,
+        visibility: 1,
+        sound: 'default'
+      }).catch(function(){});
+    }
+    // Mostrar toast con recordatorios próximos (próximas 24h)
+    var ahora = Date.now();
+    var en24h = ahora + 86400000;
+    var proximos = (state.recordatorios||[]).filter(function(r){
+      return (r.timestamp||0) >= ahora && (r.timestamp||0) <= en24h;
+    });
+    if(proximos.length > 0){
+      setTimeout(function(){
+        showToast('🔔 Tienes ' + proximos.length + ' recordatorio' + (proximos.length>1?'s':'') + ' en las próximas 24h');
+      }, 3000);
+    }
+  }, 2500);
+})();
+
+// ═══════════════════════════════════════════════════════════
+// ║  FASE D — Estadísticas históricas + IA sugerir mensajes   ║
+// ═══════════════════════════════════════════════════════════
+
+// ── ESTADÍSTICAS HISTÓRICAS ─────────────────────────────────
+// state.historialStats[] = [{ fecha:'YYYY-MM-DD', total, entregados, fallidos, reprog, montoCobrado, montoPendiente, timestamp }]
+
+// Inicializar historial si no existe
+if(!state.historialStats) state.historialStats = [];
+
+// Guardar snapshot del día actual (se llama al cerrar la app, al sincronizar, y cada cierto tiempo)
+function _ctGuardarSnapshotHoy(){
+  var clientes = state.clients || [];
+  var hoy = new Date();
+  var fechaStr = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0') + '-' + String(hoy.getDate()).padStart(2,'0');
+  var timestamp = Date.now();
+
+  var entregados = 0, fallidos = 0, reprog = 0, pendientes = 0, empresa = 0;
+  var montoCobrado = 0, montoPendiente = 0;
+
+  clientes.forEach(function(c){
+    var st = (c.status || '').toLowerCase();
+    var cobrar = parseFloat(c.cobrar || 0);
+    if(st === 'entregado'){
+      entregados++;
+      montoCobrado += cobrar;
+    } else if(['fallido','rechazado','devuelto','cancelado'].indexOf(st) !== -1){
+      fallidos++;
+    } else if(st === 'reprogramado'){
+      reprog++;
+      montoPendiente += cobrar;
+    } else if(st === 'empresa'){
+      empresa++;
+      montoPendiente += cobrar;
+    } else {
+      pendientes++;
+      montoPendiente += cobrar;
+    }
+  });
+
+  var snapshot = {
+    fecha: fechaStr,
+    total: clientes.length,
+    entregados: entregados,
+    fallidos: fallidos,
+    reprog: reprog,
+    pendientes: pendientes,
+    empresa: empresa,
+    montoCobrado: montoCobrado,
+    montoPendiente: montoPendiente,
+    timestamp: timestamp
+  };
+
+  // Buscar si ya existe un snapshot de hoy → reemplazar
+  if(!state.historialStats) state.historialStats = [];
+  var idx = state.historialStats.findIndex(function(s){ return s.fecha === fechaStr; });
+  if(idx !== -1){
+    state.historialStats[idx] = snapshot;
+  } else {
+    state.historialStats.push(snapshot);
+  }
+
+  // Mantener solo últimos 90 días
+  var limite = timestamp - (90 * 86400000);
+  state.historialStats = state.historialStats.filter(function(s){
+    return (s.timestamp || 0) >= limite;
+  });
+
+  saveState();
+}
+
+var _ctStatsPeriodoActual = 'semana';
+var _ctStatsScrollY = 0;
+
+window.abrirEstadisticasCT = function(){
+  var m = document.getElementById('ct-modal-estadisticas');
+  if(!m) return;
+  m.style.display = 'flex';
+  _ctStatsScrollY = window.scrollY || 0;
+  document.body.style.position = 'fixed';
+  document.body.style.top = '-' + _ctStatsScrollY + 'px';
+  document.body.style.width = '100%';
+  // Guardar snapshot antes de mostrar
+  _ctGuardarSnapshotHoy();
+  _ctStatsPeriodoActual = 'semana';
+  _ctActualizarTabsStats();
+  _ctRenderEstadisticas();
+};
+
+window.cerrarEstadisticasCT = function(){
+  var m = document.getElementById('ct-modal-estadisticas');
+  if(m) m.style.display = 'none';
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, _ctStatsScrollY);
+};
+
+window.cambiarPeriodoStatsCT = function(periodo){
+  _ctStatsPeriodoActual = periodo;
+  _ctActualizarTabsStats();
+  _ctRenderEstadisticas();
+};
+
+function _ctActualizarTabsStats(){
+  ['semana','mes','todo'].forEach(function(p){
+    var btn = document.getElementById('ct-stats-tab-'+p);
+    if(!btn) return;
+    if(p === _ctStatsPeriodoActual){
+      btn.style.background = 'rgba(124,58,237,0.15)';
+      btn.style.borderColor = 'rgba(124,58,237,0.4)';
+      btn.style.color = '#a78bfa';
+    } else {
+      btn.style.background = 'var(--input-bg,rgba(255,255,255,0.04))';
+      btn.style.borderColor = 'var(--border-color)';
+      btn.style.color = 'var(--text-secondary)';
+    }
+  });
+}
+
+function _ctGetStatsFiltradas(){
+  var ahora = Date.now();
+  var limite;
+  if(_ctStatsPeriodoActual === 'semana') limite = ahora - (7 * 86400000);
+  else if(_ctStatsPeriodoActual === 'mes') limite = ahora - (30 * 86400000);
+  else limite = 0;
+  return (state.historialStats || []).filter(function(s){
+    return (s.timestamp || 0) >= limite;
+  }).sort(function(a,b){
+    return (a.timestamp||0) - (b.timestamp||0);
+  });
+}
+
+function _ctRenderEstadisticas(){
+  var cont = document.getElementById('ct-stats-contenido');
+  if(!cont) return;
+  var stats = _ctGetStatsFiltradas();
+  var sub = document.getElementById('ct-est-sub');
+
+  if(stats.length === 0){
+    if(sub) sub.textContent = 'Sin datos aún — abre la app diario para acumular';
+    cont.innerHTML = '<div style="text-align:center;padding:30px 20px;color:var(--text-secondary);font-size:0.82rem;line-height:1.6">📊 Aún no hay datos históricos.<br><br>Cada vez que abras ClienteTrack se guardará un snapshot del día.<br><br>Vuelve mañana para ver tus primeras estadísticas.</div>';
+    return;
+  }
+
+  // Calcular totales del período
+  var totalEntregados = 0, totalFallidos = 0, totalReprog = 0, totalPend = 0;
+  var totalMontoCobrado = 0, totalMontoPendiente = 0, totalClientes = 0;
+  var mejorDia = null, peorDia = null;
+  stats.forEach(function(s){
+    totalEntregados += s.entregados || 0;
+    totalFallidos += s.fallidos || 0;
+    totalReprog += s.reprog || 0;
+    totalPend += s.pendientes || 0;
+    totalMontoCobrado += s.montoCobrado || 0;
+    totalMontoPendiente += s.montoPendiente || 0;
+    totalClientes += s.total || 0;
+    if(!mejorDia || (s.entregados||0) > (mejorDia.entregados||0)) mejorDia = s;
+    if(!peorDia || (s.fallidos||0) > (peorDia.fallidos||0)) peorDia = s;
+  });
+
+  var promedioEntregados = Math.round(totalEntregados / stats.length);
+  var tasaEntrega = totalClientes > 0 ? Math.round((totalEntregados / totalClientes) * 100) : 0;
+
+  if(sub) sub.textContent = stats.length + ' día' + (stats.length!==1?'s':'') + ' de registro';
+
+  var html = '';
+
+  // ── Tarjetas de resumen ──
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">';
+  html += '<div style="background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(16,185,129,0.06));border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:12px;text-align:center"><div style="font-size:0.6rem;color:#10B981;font-weight:800;text-transform:uppercase;letter-spacing:0.05em">💰 Cobrado</div><div style="font-size:1.3rem;font-weight:800;color:#10B981;margin-top:4px">S/ '+totalMontoCobrado.toFixed(0)+'</div></div>';
+  html += '<div style="background:linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.06));border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:12px;text-align:center"><div style="font-size:0.6rem;color:#F59E0B;font-weight:800;text-transform:uppercase;letter-spacing:0.05em">⏳ Por cobrar</div><div style="font-size:1.3rem;font-weight:800;color:#F59E0B;margin-top:4px">S/ '+totalMontoPendiente.toFixed(0)+'</div></div>';
+  html += '<div style="background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(124,58,237,0.06));border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:12px;text-align:center"><div style="font-size:0.6rem;color:#a78bfa;font-weight:800;text-transform:uppercase;letter-spacing:0.05em">📦 Pedidos</div><div style="font-size:1.3rem;font-weight:800;color:#a78bfa;margin-top:4px">'+totalClientes+'</div></div>';
+  html += '<div style="background:linear-gradient(135deg,rgba(59,130,246,0.12),rgba(59,130,246,0.06));border:1px solid rgba(59,130,246,0.3);border-radius:12px;padding:12px;text-align:center"><div style="font-size:0.6rem;color:#3B82F6;font-weight:800;text-transform:uppercase;letter-spacing:0.05em">📈 Tasa entrega</div><div style="font-size:1.3rem;font-weight:800;color:#3B82F6;margin-top:4px">'+tasaEntrega+'%</div></div>';
+  html += '</div>';
+
+  // ── Desglose por estado ──
+  html += '<div style="background:var(--input-bg,rgba(255,255,255,0.04));border:1px solid var(--border-color);border-radius:10px;padding:10px;margin-bottom:14px">';
+  html += '<div style="font-size:0.7rem;color:var(--text-secondary);font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">📊 Desglose del período</div>';
+  html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+  html += '<span style="font-size:0.72rem;font-weight:700;color:#10B981;background:rgba(16,185,129,0.12);padding:4px 8px;border-radius:6px">✅ Entregados: '+totalEntregados+'</span>';
+  html += '<span style="font-size:0.72rem;font-weight:700;color:#EF4444;background:rgba(239,68,68,0.12);padding:4px 8px;border-radius:6px">❌ Fallidos: '+totalFallidos+'</span>';
+  html += '<span style="font-size:0.72rem;font-weight:700;color:#8B5CF6;background:rgba(139,92,246,0.12);padding:4px 8px;border-radius:6px">🔄 Reprog: '+totalReprog+'</span>';
+  html += '<span style="font-size:0.72rem;font-weight:700;color:#F59E0B;background:rgba(245,158,11,0.12);padding:4px 8px;border-radius:6px">⏳ Pend: '+totalPend+'</span>';
+  html += '</div></div>';
+
+  // ── Gráfico de barras (entregados vs fallidos por día) ──
+  if(stats.length > 1){
+    var maxVal = 0;
+    stats.forEach(function(s){
+      if((s.entregados||0) > maxVal) maxVal = s.entregados;
+      if((s.fallidos||0) > maxVal) maxVal = s.fallidos;
+    });
+    if(maxVal === 0) maxVal = 1;
+
+    html += '<div style="background:var(--input-bg,rgba(255,255,255,0.04));border:1px solid var(--border-color);border-radius:10px;padding:10px;margin-bottom:14px">';
+    html += '<div style="font-size:0.7rem;color:var(--text-secondary);font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.05em">📈 Entregados vs Fallidos por día</div>';
+    html += '<div style="display:flex;align-items:flex-end;gap:3px;height:80px;padding-bottom:20px;position:relative;border-bottom:1px solid var(--border-color)">';
+    stats.slice(-14).forEach(function(s){  // Últimos 14 días máximo
+      var altEnt = Math.max(2, ((s.entregados||0) / maxVal) * 70);
+      var altFal = Math.max(0, ((s.fallidos||0) / maxVal) * 70);
+      var partes = s.fecha.split('-');
+      var diaLabel = partes[2] + '/' + partes[1];
+      html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative">';
+      html += '<div style="width:100%;max-width:18px;display:flex;flex-direction:column;justify-content:flex-end;height:70px">';
+      html += '<div style="background:#EF4444;width:100%;height:'+altFal+'px;border-radius:2px 2px 0 0" title="Fallidos: '+(s.fallidos||0)+'"></div>';
+      html += '<div style="background:#10B981;width:100%;height:'+altEnt+'px;border-radius:2px 2px 0 0" title="Entregados: '+(s.entregados||0)+'"></div>';
+      html += '</div>';
+      html += '<div style="position:absolute;bottom:-16px;font-size:0.5rem;color:var(--text-secondary);transform:rotate(-45deg);transform-origin:top;white-space:nowrap">'+diaLabel+'</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    html += '<div style="display:flex;gap:10px;margin-top:24px;font-size:0.65rem;color:var(--text-secondary)"><span><span style="display:inline-block;width:8px;height:8px;background:#10B981;border-radius:2px;margin-right:3px"></span>Entregados</span><span><span style="display:inline-block;width:8px;height:8px;background:#EF4444;border-radius:2px;margin-right:3px"></span>Fallidos</span></div>';
+    html += '</div>';
+  }
+
+  // ── Highlight: mejor día y peor día ──
+  if(mejorDia && stats.length > 1){
+    html += '<div style="background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(16,185,129,0.04));border:1px solid rgba(16,185,129,0.25);border-radius:10px;padding:10px;margin-bottom:8px">';
+    html += '<div style="font-size:0.72rem;color:#10B981;font-weight:800">🏆 Mejor día</div>';
+    html += '<div style="font-size:0.78rem;color:var(--text-primary);margin-top:3px">'+mejorDia.fecha+' · '+mejorDia.entregados+' entregados · S/ '+(mejorDia.montoCobrado||0).toFixed(0)+' cobrados</div>';
+    html += '</div>';
+  }
+  if(peorDia && peorDia.fallidos > 0 && stats.length > 1){
+    html += '<div style="background:linear-gradient(135deg,rgba(239,68,68,0.08),rgba(239,68,68,0.04));border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:10px;margin-bottom:14px">';
+    html += '<div style="font-size:0.72rem;color:#EF4444;font-weight:800">⚠️ Día con más fallidos</div>';
+    html += '<div style="font-size:0.78rem;color:var(--text-primary);margin-top:3px">'+peorDia.fecha+' · '+peorDia.fallidos+' fallidos</div>';
+    html += '</div>';
+  }
+
+  // ── Tabla detallada ──
+  html += '<div style="font-size:0.7rem;color:var(--text-secondary);font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">📋 Detalle por día</div>';
+  html += '<div style="background:var(--input-bg,rgba(255,255,255,0.04));border:1px solid var(--border-color);border-radius:10px;overflow:hidden">';
+  html += '<div style="display:grid;grid-template-columns:1.2fr 0.8fr 0.8fr 1fr;background:var(--bg-secondary);padding:8px 10px;font-size:0.62rem;font-weight:800;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em"><span>Fecha</span><span style="text-align:center">✅</span><span style="text-align:center">❌</span><span style="text-align:right">💰 Cobrado</span></div>';
+  // Mostrar en orden inverso (más reciente primero)
+  stats.slice().reverse().forEach(function(s, i){
+    var bg = i % 2 === 0 ? 'transparent' : 'var(--bg-secondary)';
+    html += '<div style="display:grid;grid-template-columns:1.2fr 0.8fr 0.8fr 1fr;padding:8px 10px;font-size:0.72rem;background:'+bg+';border-top:1px solid var(--border-color)">';
+    html += '<span style="color:var(--text-primary);font-weight:700">'+s.fecha+'</span>';
+    html += '<span style="text-align:center;color:#10B981;font-weight:700">'+(s.entregados||0)+'</span>';
+    html += '<span style="text-align:center;color:#EF4444;font-weight:700">'+(s.fallidos||0)+'</span>';
+    html += '<span style="text-align:right;color:#10B981;font-weight:700">S/ '+((s.montoCobrado||0)).toFixed(0)+'</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  cont.innerHTML = html;
+}
+
+// Guardar snapshot al cerrar la app + cada 5 minutos
+window.addEventListener('beforeunload', function(){
+  _ctGuardarSnapshotHoy();
+});
+setInterval(function(){
+  _ctGuardarSnapshotHoy();
+}, 5 * 60 * 1000);
+
+// ── IA SUGERIR MENSAJE ──────────────────────────────────────
+var _ctIAClienteActual = null;
+var _ctIAMensajeGenerado = '';
+var _ctIAScrollY = 0;
+
+window.sugerirMensajeIACliente = function(clientId){
+  var cliente = (state.clients||[]).find(function(c){ return c.id === clientId; });
+  if(!cliente){ showToast('⚠️ Cliente no encontrado'); return; }
+  _ctIAClienteActual = cliente;
+
+  var m = document.getElementById('ct-modal-ia-sugerir');
+  if(!m) return;
+  m.style.display = 'flex';
+  _ctIAScrollY = window.scrollY || 0;
+  document.body.style.position = 'fixed';
+  document.body.style.top = '-' + _ctIAScrollY + 'px';
+  document.body.style.width = '100%';
+
+  // Llenar datos del cliente
+  var nombreEl = document.getElementById('ct-ia-cliente-nombre');
+  if(nombreEl) nombreEl.textContent = 'Cliente: ' + (cliente.name || '—');
+  var ctxEl = document.getElementById('ct-ia-contexto');
+  if(ctxEl){
+    ctxEl.innerHTML = '<strong>📋 Contexto del cliente:</strong><br>'
+      + '👤 Nombre: ' + (cliente.name || '—') + '<br>'
+      + '📦 Producto: ' + (cliente.product || '—') + '<br>'
+      + '💰 A cobrar: S/ ' + (cliente.cobrar || 0) + '<br>'
+      + '📍 Dirección: ' + (cliente.address || '—') + '<br>'
+      + '🏘️ Distrito: ' + (cliente.district || '—') + '<br>'
+      + '⏰ Estado actual: ' + (cliente.status || 'Pendiente') + '<br>'
+      + (cliente.observation ? '📝 Notas: ' + cliente.observation : '');
+  }
+
+  // Reset
+  var tipoSel = document.getElementById('ct-ia-tipo');
+  if(tipoSel) tipoSel.value = 'recordatorio_pago';
+  var libreInp = document.getElementById('ct-ia-libre');
+  if(libreInp) libreInp.value = '';
+  var resultado = document.getElementById('ct-ia-resultado');
+  if(resultado) resultado.style.display = 'none';
+};
+
+window.cerrarIASugerirCT = function(){
+  var m = document.getElementById('ct-modal-ia-sugerir');
+  if(m) m.style.display = 'none';
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, _ctIAScrollY);
+  _ctIAClienteActual = null;
+  _ctIAMensajeGenerado = '';
+};
+
+window.generarMensajeIACT = function(){
+  if(!_ctIAClienteActual){ showToast('⚠️ Sin cliente seleccionado'); return; }
+  var apiKey = localStorage.getItem('rider_api_key') || '';
+  if(!apiKey){
+    showToastLargoCT('⚠️ Sin API Key. Ve a RiderTrack → Menú → 🤖 Configurar API Key IA para activar.');
+    return;
+  }
+
+  var tipo = document.getElementById('ct-ia-tipo').value;
+  var libre = document.getElementById('ct-ia-libre').value.trim();
+  var c = _ctIAClienteActual;
+
+  // Construir prompt
+  var tiposConfig = {
+    'recordatorio_pago': 'un mensaje para recordarle amablemente que debe pagar su pedido. Incluye el monto y ofrece opciones de pago (Yape, Plin, efectivo).',
+    'no_contesta': 'un mensaje para cuando el cliente no contesta. Sé amable, pregunta si hay un mejor momento para coordinar, y ofrece ayuda.',
+    'reprogramar': 'un mensaje para coordinar la reprogramación de la entrega. Pregunta qué día y hora le viene mejor.',
+    'confirmacion_direccion': 'un mensaje para confirmar la dirección exacta de entrega, ya que la registrada puede estar incompleta.',
+    'pedir_ubicacion': 'un mensaje pidiéndole que te envíe su ubicación actual por Google Maps (botón de ubicación de WhatsApp) para poder llegar exacto a su dirección. Explícale brevemente cómo hacerlo: abrir el chat de WhatsApp, tocar el clip 📎, seleccionar "Ubicación", luego "Ubicación actual" o compartir ubicación en tiempo real. Menciona que lo necesitas para armar tu ruta y llegar sin perderte. Sé amable y específico.',
+    'agradecimiento': 'un mensaje de agradecimiento por su compra, confirmando que todo estuvo en orden.',
+    'seguimiento': 'un mensaje de seguimiento del pedido, informando el estado actual y el tiempo estimado de entrega.',
+    'libre': 'un mensaje personalizado según la instrucción: "' + (libre || 'mensaje general cordial') + '"'
+  };
+
+  var tipoDesc = tiposConfig[tipo] || tiposConfig['libre'];
+
+  var prompt = 'Eres un asistente de mensajería para repartidores en Lima, Perú. '
+    + 'Genera UN solo mensaje de WhatsApp (sin asunto, sin emojis excesivos, máximo 3 emojis) '
+    + 'para el siguiente cliente.\n\n'
+    + 'DATOS DEL CLIENTE:\n'
+    + 'Nombre: ' + (c.name || 'Cliente') + '\n'
+    + 'Producto: ' + (c.product || '—') + '\n'
+    + 'Monto a cobrar: S/ ' + (c.cobrar || 0) + '\n'
+    + 'Dirección: ' + (c.address || '—') + '\n'
+    + 'Distrito: ' + (c.district || '—') + '\n'
+    + 'Estado actual: ' + (c.status || 'Pendiente') + '\n'
+    + (c.observation ? 'Notas: ' + c.observation + '\n' : '')
+    + '\nNECESITO: ' + tipoDesc + '\n\n'
+    + 'REQUISITOS:\n'
+    + '- Tono cordial pero profesional, español peruano\n'
+    + '- Máximo 3-4 líneas\n'
+    + '- No uses [entre corchetes] ni placeholders\n'
+    + '- No digas "Aquí tienes el mensaje" ni introducciones\n'
+    + '- Solo el mensaje final, listo para enviar\n\n'
+    + 'Mensaje:';
+
+  // Mostrar loading
+  var btn = document.getElementById('ct-ia-generar-btn');
+  if(btn){
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    btn.textContent = '🤔 Generando...';
+  }
+  var resultado = document.getElementById('ct-ia-resultado');
+  var msgEl = document.getElementById('ct-ia-mensaje');
+  if(resultado) resultado.style.display = 'none';
+
+  // Llamada a Anthropic Claude (mismo endpoint que RiderTrack)
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5',
+      max_tokens: 300,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(btn){
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.textContent = '🤖 Generar mensaje con IA';
+    }
+    var txt = '';
+    if(data.error){
+      txt = '⚠️ ' + (data.error.message || 'Error de la IA');
+      if(data.error.type === 'authentication_error'){
+        showToastLargoCT('⚠️ API Key inválida. Ve a RiderTrack → Menú → 🤖 Configurar API Key IA.');
+      }
+    } else if(data.content && data.content[0] && data.content[0].text){
+      txt = data.content[0].text.trim();
+    } else {
+      txt = '⚠️ La IA no devolvió un mensaje válido. Intenta de nuevo.';
+    }
+    _ctIAMensajeGenerado = txt;
+    if(msgEl) msgEl.textContent = txt;
+    if(resultado) resultado.style.display = 'block';
+  })
+  .catch(function(e){
+    if(btn){
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.textContent = '🤖 Generar mensaje con IA';
+    }
+    _ctIAMensajeGenerado = '⚠️ Sin conexión con la IA. Verifica tu internet e intenta de nuevo.';
+    if(msgEl) msgEl.textContent = _ctIAMensajeGenerado;
+    if(resultado) resultado.style.display = 'block';
+  });
+};
+
+window.copiarMensajeIACT = function(){
+  if(!_ctIAMensajeGenerado){ showToast('⚠️ Sin mensaje para copiar'); return; }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(_ctIAMensajeGenerado).then(function(){
+      showToast('📋 Mensaje copiado');
+    }).catch(function(){
+      _ctCopiarFallback(_ctIAMensajeGenerado);
+    });
+  } else {
+    _ctCopiarFallback(_ctIAMensajeGenerado);
+  }
+};
+
+function _ctCopiarFallback(text){
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); showToast('📋 Mensaje copiado'); }
+  catch(e){ showToast('⚠️ No se pudo copiar'); }
+  document.body.removeChild(ta);
+}
+
+window.enviarMensajeIACT = function(){
+  if(!_ctIAMensajeGenerado || _ctIAMensajeGenerado.startsWith('⚠️')){ showToast('⚠️ Sin mensaje válido'); return; }
+  if(!_ctIAClienteActual){ showToast('⚠️ Sin cliente'); return; }
+  var phone = _ctIAClienteActual.phone || '';
+  if(!phone){ showToast('⚠️ Cliente sin teléfono'); return; }
+  var num = phone.replace(/\D/g, '');
+  if(!num.startsWith('51') && num.length === 9) num = '51' + num;
+  window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(_ctIAMensajeGenerado), '_blank');
+};
+
+// ═══════════════════════════════════════════════════════════
+// ║  FASE E — Theme Studio + Modo offline mejorado             ║
+// ═══════════════════════════════════════════════════════════
+
+// ── THEME STUDIO ────────────────────────────────────────────
+// Persistencia en state.themeStudio = { accent, accentDark, mode, fontSize }
+if(!state.themeStudio) state.themeStudio = { accent: '', accentDark: '', mode: 'dark', fontSize: 100 };
+
+// Aplicar tema guardado al cargar
+function _ctThemeApply(){
+  var ts = state.themeStudio || {};
+  // Color de acento
+  if(ts.accent && ts.accentDark){
+    document.documentElement.style.setProperty('--accent', ts.accent);
+    document.documentElement.style.setProperty('--accent-dark', ts.accentDark);
+    // Actualizar botones seleccionados
+    var customColor = document.getElementById('ct-theme-custom-color');
+    if(customColor) customColor.value = ts.accent;
+  }
+  // Modo
+  if(ts.mode){
+    if(typeof applyTheme === 'function'){
+      applyTheme(ts.mode);
+    }
+    var slider = document.getElementById('theme-slider');
+    if(slider) slider.value = ts.mode === 'light' ? 1 : 0;
+    _ctThemeUpdateModeButtons();
+  }
+  // Tamaño de fuente
+  if(ts.fontSize){
+    document.documentElement.style.setProperty('--ct-font-scale', (ts.fontSize / 100));
+    document.body.style.fontSize = (ts.fontSize * 0.85 / 100) + 'rem';
+    var fs = document.getElementById('ct-theme-font-size');
+    if(fs) fs.value = ts.fontSize;
+    var fsl = document.getElementById('ct-theme-font-label');
+    if(fsl) fsl.textContent = ts.fontSize + '%';
+  }
+}
+
+window.ctThemeSetAccent = function(color, colorDark){
+  state.themeStudio = state.themeStudio || {};
+  state.themeStudio.accent = color;
+  state.themeStudio.accentDark = colorDark;
+  saveState();
+  document.documentElement.style.setProperty('--accent', color);
+  document.documentElement.style.setProperty('--accent-dark', colorDark);
+  showToast('🎨 Color actualizado');
+};
+
+window.ctThemeCustomColor = function(color){
+  if(!color) return;
+  // Generar color oscuro automáticamente
+  var hex = color.replace('#','');
+  var r = parseInt(hex.substr(0,2), 16);
+  var g = parseInt(hex.substr(2,2), 16);
+  var b = parseInt(hex.substr(4,2), 16);
+  var darker = '#' + [r,g,b].map(function(c){
+    return Math.max(0, c - 50).toString(16).padStart(2,'0');
+  }).join('');
+  ctThemeSetAccent(color, darker);
+};
+
+window.ctThemeSetMode = function(mode){
+  state.themeStudio = state.themeStudio || {};
+  state.themeStudio.mode = mode;
+  state.theme = mode;
+  saveState();
+  if(typeof applyTheme === 'function'){
+    applyTheme(mode);
+  }
+  var slider = document.getElementById('theme-slider');
+  if(slider) slider.value = mode === 'light' ? 1 : 0;
+  _ctThemeUpdateModeButtons();
+  showToast(mode === 'light' ? '☀️ Modo claro' : '🌙 Modo oscuro');
+};
+
+function _ctThemeUpdateModeButtons(){
+  var ts = state.themeStudio || {};
+  var btnDark = document.getElementById('ct-theme-btn-dark');
+  var btnLight = document.getElementById('ct-theme-btn-light');
+  if(btnDark){
+    if(ts.mode === 'dark'){
+      btnDark.style.borderColor = 'var(--accent)';
+      btnDark.style.background = 'rgba(124,58,237,0.1)';
+    } else {
+      btnDark.style.borderColor = 'var(--border-color)';
+      btnDark.style.background = 'var(--input-bg)';
+    }
+  }
+  if(btnLight){
+    if(ts.mode === 'light'){
+      btnLight.style.borderColor = 'var(--accent)';
+      btnLight.style.background = 'rgba(124,58,237,0.1)';
+    } else {
+      btnLight.style.borderColor = 'var(--border-color)';
+      btnLight.style.background = 'var(--input-bg)';
+    }
+  }
+}
+
+window.ctThemeSetFontSize = function(size){
+  size = parseInt(size) || 100;
+  state.themeStudio = state.themeStudio || {};
+  state.themeStudio.fontSize = size;
+  saveState();
+  document.body.style.fontSize = (size * 0.85 / 100) + 'rem';
+  var fsl = document.getElementById('ct-theme-font-label');
+  if(fsl) fsl.textContent = size + '%';
+};
+
+window.ctThemeReset = function(){
+  if(!confirm('¿Restablecer tema a valores por defecto?')) return;
+  state.themeStudio = { accent: '', accentDark: '', mode: 'dark', fontSize: 100 };
+  saveState();
+  // Limpiar estilos aplicados
+  document.documentElement.style.removeProperty('--accent');
+  document.documentElement.style.removeProperty('--accent-dark');
+  document.body.style.fontSize = '';
+  // Recargar para aplicar estilos por defecto
+  showToast('✅ Tema restablecido');
+  setTimeout(function(){ location.reload(); }, 800);
+};
+
+// Aplicar tema al cargar la app
+setTimeout(function(){ _ctThemeApply(); }, 200);
+
+// ── MODO OFFLINE MEJORADO ───────────────────────────────────
+var _ctOnline = navigator.onLine;
+var _ctOfflineToastShown = false;
+
+function _ctActualizarIndicadorOnline(){
+  var indicator = document.getElementById('ct-offline-indicator');
+  var txt = document.getElementById('ct-offline-text');
+  var detail = document.getElementById('ct-offline-detail');
+  if(_ctOnline){
+    if(indicator){
+      indicator.style.background = '#10b981';
+      indicator.style.boxShadow = '0 0 8px #10b981';
+    }
+    if(txt) txt.textContent = 'Conectado';
+    if(detail) detail.textContent = 'Sincronización activa';
+    if(_ctOfflineToastShown){
+      showToast('✅ Conexión restablecida');
+      _ctOfflineToastShown = false;
+      // Forzar sync al volver
+      if(_ctDb && _ctUid && _ctAutoSyncEnabled){
+        setTimeout(function(){ _ctGuardarEnNube(true); }, 1000);
+      }
+    }
+  } else {
+    if(indicator){
+      indicator.style.background = '#ef4444';
+      indicator.style.boxShadow = '0 0 8px #ef4444';
+    }
+    if(txt) txt.textContent = 'Sin conexión';
+    if(detail) detail.textContent = 'Tus cambios se guardan localmente';
+    if(!_ctOfflineToastShown){
+      showToast('⚠️ Sin conexión — modo offline');
+      _ctOfflineToastShown = true;
+    }
+  }
+}
+
+window.addEventListener('online', function(){
+  _ctOnline = true;
+  _ctActualizarIndicadorOnline();
+});
+window.addEventListener('offline', function(){
+  _ctOnline = false;
+  _ctActualizarIndicadorOnline();
+});
+
+// Inicializar indicador al cargar
+setTimeout(function(){ _ctActualizarIndicadorOnline(); }, 500);
+// Verificar cada 30 segundos si hay conexión (cuando no hay eventos online/offline)
+setInterval(function(){
+  var actualOnline = navigator.onLine;
+  if(actualOnline !== _ctOnline){
+    _ctOnline = actualOnline;
+    _ctActualizarIndicadorOnline();
+  }
+}, 30000);
 
 // ║  SECCIÓN 3: UTILIDADES                                ║
 // ║  Funciones: showToast(), cleanPhoneNumber(),          ║
@@ -1944,7 +4123,10 @@ function renderClients() {
           <button class="btn" style="background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.3);color:var(--color-reprogramado);" onclick="openClientTemplates(${client.id})">📚 Plantillas</button>
           <button class="btn" style="background:rgba(99,102,241,0.1);border-color:rgba(99,102,241,0.3);color:#818cf8;" onclick="waEmpresaCliente(${client.id})">🏢 Empresa WA</button>
           <button class="btn" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.3);color:#fbbf24;" onclick="abrirPanelHora(${client.id})">🕐 Hora llegada</button>
-          <button class="btn" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.2);color:var(--color-fallido);" onclick="deleteClient(${client.id})">🗑️ Eliminar</button>
+          <button class="btn" style="background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(124,58,237,0.08));border-color:rgba(124,58,237,0.4);color:#a78bfa;font-weight:700;" onclick="informarAlEquipoCT(${client.id})">🚨 Informar equipo</button>
+          <button class="btn" style="background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(245,158,11,0.08));border-color:rgba(245,158,11,0.4);color:#f59e0b;font-weight:700;" onclick="abrirRecordatorioCobro(${client.id})">🔔 Recordatorio</button>
+          <button class="btn" style="background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(99,102,241,0.08));border-color:rgba(99,102,241,0.4);color:#818cf8;font-weight:700;" onclick="sugerirMensajeIACliente(${client.id})">🤖 Sugerir con IA</button>
+          <button class="btn" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.2);color:var(--color-fallido);grid-column:1/-1;" onclick="deleteClient(${client.id})">🗑️ Eliminar</button>
         </div>
 
         <!-- PANEL MENSAJE EDITABLE -->
@@ -2447,20 +4629,27 @@ window.syncRiderTrack = function(silent) {
          'pos','pago-link','jose-smith','cambio','mixto'].includes(st)) return 'Entregado';
     // Empresa
     if (st === 'empresa') return 'Empresa';
-    // Fallidos
-    if (st === 'fallida' || st === 'rechazado' || st === 'devuelto' || st === 'cancelado') return 'Fallido';
+    // Fallidos (varios tipos)
+    if (st === 'fallida') return 'Fallido';
+    if (st === 'rechazado') return 'Rechazado';
+    if (st === 'devuelto') return 'Devuelto';
+    if (st === 'cancelado') return 'Cancelado';
+    if (st === 'ausente') return 'Ausente';
+    if (st === 'no-contesta') return 'No contesta';
     // Reprogramar
     if (st === 'reprogramar') return 'Reprogramado';
-    // No contesta
-    if (st === 'no-contesta' || st === 'ausente') return 'No contesta';
     return 'Pendiente';
   }
+
+  // Lista de estados que van a la agenda de "no entregados"
+  var ESTADOS_AGENDA = ['Reprogramado','Fallido','Rechazado','Devuelto','Cancelado','Ausente','No contesta'];
 
   try {
     var rt = JSON.parse(localStorage.getItem('urRoute') || '{}');
     var clsRT = rt.cl || [];
+    var reprogRT = rt.reprog || [];  // ← NUEVO: biblioteca de reprogramados/fallidos de RiderTrack
 
-    if (!clsRT.length) {
+    if (!clsRT.length && !reprogRT.length) {
       // RiderTrack vacío → limpiar todo excepto clientes manuales (_ctOnly)
       var kept = state.clients.filter(function(c) { return c._ctOnly; });
       if (kept.length !== state.clients.length) {
@@ -2473,7 +4662,7 @@ window.syncRiderTrack = function(silent) {
       return;
     }
 
-    // Mapear clientes de RiderTrack con campos EXACTOS
+    // 1) Mapear clientes del día (D.cl)
     var rtClients = clsRT.map(function(c, i) {
       // Buscar si ya existe en state (para preservar cambios hechos en CT)
       var phone = cleanPhoneNumber(c.cel || '');
@@ -2494,24 +4683,88 @@ window.syncRiderTrack = function(silent) {
         district: c.dist || '',
         address: c.dir || '',
         cobrar: parseFloat(c.cobrar || c.precio || 0),
-        observation: c.obs || c.nota || existing?.observation || '',
+        observation: c.obs || c.nota || (existing && existing.observation) || '',
         hora: c.hora || '',
         // Estado: preservar cambios de CT si existe, si no mapear de RT
         status: existing ? existing.status : mapSt(c.st),
         rutaSequence: i,
         _ctOnly: false,
         _rtSt: c.st,
+        _origen: 'ruta',
         tipDir: c.tipDir || clasificarDirCT(c.dir || c.address || ''),
+        // Si el cliente del día tiene estado de agenda, heredar datos de reprogramación si los tiene
+        reprogFecha: (existing && existing.reprogFecha) || '',
+        reprogHora: (existing && existing.reprogHora) || '',
+        reprogNota: (existing && existing.reprogNota) || '',
       };
     });
 
-    // Reemplazar TODOS los clientes con los de RT + manuales de CT
-    // Los demo/anteriores se eliminan, solo quedan RT y los agregados manualmente
+    // 2) Mapear reprogramados/fallidos de la biblioteca (D.reprog)
+    //    Estos NO están en D.cl pero SÍ deben aparecer en la agenda de ClienteTrack
+    var reprogClients = [];
+    reprogRT.forEach(function(r, i) {
+      // Verificar que no esté ya en rtClients (mismo teléfono o mismo ID)
+      var phoneR = cleanPhoneNumber(r.cel || '');
+      var yaEnRuta = rtClients.find(function(x) {
+        return cleanPhoneNumber(x.phone) === phoneR && phoneR;
+      });
+      if(yaEnRuta) {
+        // Ya está en la ruta del día — solo actualizar el estado si era de agenda
+        yaEnRuta._rtSt = r.st;
+        yaEnRuta._origen = 'reprog+ruta';
+        return;
+      }
+
+      // Calcular fecha de reprogramación (cuándo se guardó → formato YYYY-MM-DD)
+      var guardadoTs = r.guardadoTs || Date.now();
+      var fechaGuardado = new Date(guardadoTs);
+      var fechaStr = fechaGuardado.getFullYear() + '-' +
+        String(fechaGuardado.getMonth()+1).padStart(2,'0') + '-' +
+        String(fechaGuardado.getDate()).padStart(2,'0');
+
+      var existing = state.clients.find(function(x) {
+        return !x._ctOnly && (
+          (r.id && x._rtReprogId === r.id) ||
+          (phoneR && cleanPhoneNumber(x.phone) === phoneR)
+        );
+      });
+
+      reprogClients.push({
+        id: existing ? existing.id : (Date.now() + 10000 + i),
+        num: 0,  // Sin número de ruta (no está en la ruta del día)
+        name: r.nom || r.nombre || '',
+        product: r.prod || '',
+        phone: r.cel || '',
+        district: r.dist || '',
+        address: r.dir || '',
+        cobrar: parseFloat(r.cobrar || r.precio || 0),
+        observation: r.obs || r.nota || (existing && existing.observation) || '',
+        hora: '',
+        status: mapSt(r.st),
+        rutaSequence: 9999 + i,
+        _ctOnly: false,
+        _rtSt: r.st,
+        _rtReprogId: r.id,
+        _origen: 'reprog',
+        _guardadoTs: guardadoTs,
+        _guardadoFecha: r.guardadoFecha || '',
+        tipDir: clasificarDirCT(r.dir || ''),
+        // Mapear guardadoTs a reprogFecha (para que aparezca en agenda y calendario)
+        reprogFecha: (existing && existing.reprogFecha) || fechaStr,
+        reprogHora: (existing && existing.reprogHora) || '',
+        reprogNota: (existing && existing.reprogNota) || 'Guardado de RiderTrack el ' + (r.guardadoFecha || ''),
+      });
+    });
+
+    // 3) Combinar: clientes de ruta + reprogramados + manuales (_ctOnly)
     var ctOnly = state.clients.filter(function(c) { return c._ctOnly === true; });
-    state.clients = rtClients.concat(ctOnly);
+    state.clients = rtClients.concat(reprogClients).concat(ctOnly);
 
     saveState(); renderDashboard(); renderClients();
-    if (!silent) showToast('Sincronizado: ' + rtClients.length + ' clientes de RiderTrack');
+    var msg = 'Sincronizado: ' + rtClients.length + ' en ruta';
+    if(reprogClients.length > 0) msg += ' · ' + reprogClients.length + ' en agenda';
+    if(ctOnly.length > 0) msg += ' · ' + ctOnly.length + ' manuales';
+    if (!silent) showToast(msg);
   } catch(e) {
     if (!silent) showToast('Error al sincronizar');
     console.error('syncRiderTrack error:', e);
@@ -4632,10 +6885,24 @@ window.llamarCliente = function(phone){
   window.location.href = 'tel:+' + num;
 };
 
-// ── AGENDA DE REPROGRAMADOS ───────────────────────────────────
+// ── AGENDA DE REPROGRAMADOS (y otros estados no entregados) ────
+// Lista de estados que van a la agenda
+var CT_ESTADOS_AGENDA = ['Reprogramado','Fallido','Rechazado','Devuelto','Cancelado','Ausente','No contesta'];
+// Config de colores por estado
+var CT_ESTADOS_CONFIG = {
+  'Reprogramado': { emoji:'🔄', color:'#8B5CF6', bg:'rgba(139,92,246,0.08)', border:'rgba(139,92,246,0.3)' },
+  'Fallido':       { emoji:'❌', color:'#EF4444', bg:'rgba(239,68,68,0.08)',  border:'rgba(239,68,68,0.3)' },
+  'Rechazado':     { emoji:'🚫', color:'#DC2626', bg:'rgba(220,38,38,0.08)',  border:'rgba(220,38,38,0.3)' },
+  'Devuelto':      { emoji:'↩️', color:'#F97316', bg:'rgba(249,115,22,0.08)', border:'rgba(249,115,22,0.3)' },
+  'Cancelado':     { emoji:'✖',  color:'#6B7280', bg:'rgba(107,114,128,0.08)',border:'rgba(107,114,128,0.3)' },
+  'Ausente':       { emoji:'🚶', color:'#F59E0B', bg:'rgba(245,158,11,0.08)', border:'rgba(245,158,11,0.3)' },
+  'No contesta':   { emoji:'📵', color:'#3B82F6', bg:'rgba(59,130,246,0.08)', border:'rgba(59,130,246,0.3)' }
+};
+
 window.abrirAgendaReprog = function(){
+  // Ahora la agenda muestra TODOS los estados no entregados (no solo "reprogramado")
   var reprog = (state.clients||[]).filter(function(c){
-    return (c.status||'').toLowerCase() === 'reprogramado';
+    return CT_ESTADOS_AGENDA.indexOf(c.status || '') !== -1;
   });
 
   var prev = document.getElementById('agenda-reprog-panel');
@@ -4664,6 +6931,11 @@ window.abrirAgendaReprog = function(){
   var grupos = {};
   reprog.forEach(function(c){
     var f = c.reprogFecha || 'Sin fecha asignada';
+    // Normalizar formato si viene como YYYY-MM-DD
+    if(/^\d{4}-\d{2}-\d{2}$/.test(f)){
+      var partes = f.split('-');
+      f = partes[2]+'/'+partes[1]+'/'+partes[0];
+    }
     if(!grupos[f]) grupos[f] = [];
     grupos[f].push(c);
   });
@@ -4671,13 +6943,30 @@ window.abrirAgendaReprog = function(){
   var html = '<div style="background:var(--bg-card);border-radius:18px 18px 0 0;border-top:3px solid var(--color-reprogramado);width:100%;max-width:430px;max-height:80vh;display:flex;flex-direction:column;animation:slideUp 0.25s ease">'
     + '<div style="padding:12px 16px 8px;flex-shrink:0;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center">'
     + '<div style="font-size:0.88rem;font-weight:800;color:var(--text-primary)">🗓️ Agenda de Reprogramados</div>'
+    + '<div style="display:flex;gap:6px;align-items:center">'
+    + '<button id="btn-calendario-reprog" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);border-radius:8px;padding:5px 10px;font-size:0.72rem;cursor:pointer;color:#a78bfa;font-weight:700">📅 Calendario</button>'
     + '<button id="btn-cerrar-agenda" style="background:var(--bg-secondary);border:none;border-radius:50%;width:28px;height:28px;font-size:0.85rem;cursor:pointer;color:var(--text-secondary)">✕</button>'
+    + '</div>'
     + '</div>'
     + '<div style="overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;padding:12px 16px 16px">';
 
   if(!reprog.length){
-    html += '<div style="text-align:center;padding:30px;color:var(--text-secondary);font-size:0.8rem">📭 Sin clientes reprogramados</div>';
+    html += '<div style="text-align:center;padding:30px;color:var(--text-secondary);font-size:0.8rem">📭 Sin clientes en agenda<br><span style="font-size:0.7rem">Los reprogramados, fallidos, rechazados, etc. aparecerán aquí automáticamente al sincronizar con RiderTrack</span></div>';
   } else {
+    // Resumen por estado al inicio
+    var porEstado = {};
+    reprog.forEach(function(c){
+      var st = c.status || 'Otro';
+      if(!porEstado[st]) porEstado[st] = 0;
+      porEstado[st]++;
+    });
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;padding:8px;background:var(--bg-secondary);border-radius:8px">';
+    Object.keys(porEstado).forEach(function(st){
+      var cfg = CT_ESTADOS_CONFIG[st] || { emoji:'•', color:'var(--text-secondary)' };
+      html += '<div style="font-size:0.68rem;font-weight:700;color:'+cfg.color+';background:'+cfg.bg+';padding:3px 8px;border-radius:6px;border:1px solid '+cfg.border+'">'+cfg.emoji+' '+st+': '+porEstado[st]+'</div>';
+    });
+    html += '</div>';
+
     Object.keys(grupos).sort().forEach(function(fecha){
       var esHoy = fecha === hoy;
       var esManana = fecha === manana;
@@ -4689,9 +6978,13 @@ window.abrirAgendaReprog = function(){
         + '<div style="font-size:0.72rem;font-weight:800;color:'+(esHoy?'#EF4444':esManana?'#F59E0B':'#8B5CF6')+';margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">'+etiqueta+'</div>';
 
       grupos[fecha].forEach(function(c){
-        html += '<div style="background:'+colorBg+';border:1px solid '+colorBorder+';border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">'
+        var cfg = CT_ESTADOS_CONFIG[c.status] || { emoji:'•', color:'var(--text-secondary)', bg:'rgba(128,128,128,0.08)', border:'rgba(128,128,128,0.3)' };
+        html += '<div style="background:'+cfg.bg+';border:1px solid '+cfg.border+';border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">'
           + '<div style="flex:1;min-width:0">'
-          + '<div style="font-size:0.82rem;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+c.name+'</div>'
+          + '<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">'
+          + '<span style="font-size:0.7rem;font-weight:800;color:'+cfg.color+';background:'+cfg.bg+';padding:1px 6px;border-radius:4px;border:1px solid '+cfg.border+'">'+cfg.emoji+' '+c.status+'</span>'
+          + '<span style="font-size:0.82rem;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+c.name+'</span>'
+          + '</div>'
           + '<div style="font-size:0.68rem;color:var(--text-secondary);margin-top:1px">'+c.product+(c.reprogHora?' · ⏰ '+c.reprogHora:'')+'</div>'
           + (c.reprogNota?'<div style="font-size:0.65rem;color:var(--text-secondary);margin-top:2px;font-style:italic">'+c.reprogNota+'</div>':'')
           + '</div>'
@@ -4710,6 +7003,8 @@ window.abrirAgendaReprog = function(){
   document.body.appendChild(overlay);
   overlay.onclick = function(e){ if(e.target===overlay) cerrar(); };
   document.getElementById('btn-cerrar-agenda').onclick = cerrar;
+  var btnCal = document.getElementById('btn-calendario-reprog');
+  if(btnCal) btnCal.onclick = function(){ cerrar(); setTimeout(function(){ abrirCalendarioReprogCT(); }, 250); };
 };
 
 // Notificación de reprogramados del día (al abrir la app)
@@ -4717,10 +7012,18 @@ window.abrirAgendaReprog = function(){
   setTimeout(function(){
     var hoy = new Date().toLocaleDateString('es-PE');
     var reprogHoy = (state.clients||[]).filter(function(c){
-      return (c.status||'').toLowerCase()==='reprogramado' && c.reprogFecha && c.reprogFecha===hoy;
+      // Cualquier estado de agenda con fecha de hoy
+      if(CT_ESTADOS_AGENDA.indexOf(c.status || '') === -1) return false;
+      var f = c.reprogFecha || '';
+      // Normalizar
+      if(/^\d{4}-\d{2}-\d{2}$/.test(f)){
+        var partes = f.split('-');
+        f = partes[2]+'/'+partes[1]+'/'+partes[0];
+      }
+      return f === hoy;
     });
     if(reprogHoy.length > 0){
-      showToast('🗓️ Hoy tienes '+reprogHoy.length+' reprogramado'+(reprogHoy.length>1?'s':'')+' pendiente'+(reprogHoy.length>1?'s':''));
+      showToast('🗓️ Hoy tienes '+reprogHoy.length+' cliente'+(reprogHoy.length>1?'s':'')+' en agenda (reprogramados/fallidos)');
     }
   }, 2000);
 })();
