@@ -2805,10 +2805,8 @@ function renderCalendarioReprogCT(){
   var titEl = document.getElementById('ct-cal-titulo');
   if(titEl) titEl.textContent = meses[_ctCalMesActual] + ' ' + _ctCalAnoActual;
 
-  // Obtener TODOS los estados de agenda (reprogramados, fallidos, rechazados, etc.)
-  var reprog = (state.clients||[]).filter(function(c){
-    return CT_ESTADOS_AGENDA.indexOf(c.status || '') !== -1;
-  });
+  // Obtener reprogramados de state.reprogClients (SEPARADO de state.clients)
+  var reprog = state.reprogClients || [];
 
   // Normalizar fechas a YYYY-MM-DD (los reprogFecha pueden venir en distintos formatos)
   var reprogPorFecha = {};
@@ -2894,8 +2892,8 @@ function renderCalendarioReprogCT(){
 }
 
 window.seleccionarDiaCalendarioCT = function(fechaStr){
-  var reprog = (state.clients||[]).filter(function(c){
-    return CT_ESTADOS_AGENDA.indexOf(c.status || '') !== -1 && _ctNormalizarFecha(c.reprogFecha) === fechaStr;
+  var reprog = (state.reprogClients || []).filter(function(c){
+    return _ctNormalizarFecha(c.reprogFecha) === fechaStr;
   });
   var det = document.getElementById('ct-cal-detalle');
   var fechaLabel = document.getElementById('ct-cal-detalle-fecha');
@@ -2963,6 +2961,8 @@ var _ctRecClienteActual = null;
 
 // Inicializar recordatorios en state si no existen
 if(!state.recordatorios) state.recordatorios = [];
+// Inicializar reprogClients (SEPARADO de state.clients)
+if(!state.reprogClients) state.reprogClients = [];
 
 window.abrirRecordatorioCobro = function(clientId){
   var cliente = (state.clients||[]).find(function(c){ return c.id === clientId; });
@@ -4032,42 +4032,35 @@ function renderDashboard() {
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   renderResumen();
 
-  // Diferenciar clientes en RUTA DE HOY vs clientes en AGENDA (reprogramados/fallidos de días anteriores)
-  // Los de ruta tienen _origen === 'ruta' o no tienen _origen (manuales)
-  // Los de agenda tienen _origen === 'reprog'
-  var clientesHoy = clients.filter(function(c){
-    return c._origen !== 'reprog';  // Excluir los que vinieron de la biblioteca de reprog
-  });
-  var clientesAgenda = clients.filter(function(c){
-    return c._origen === 'reprog';
-  });
-
-  // El dashboard muestra SOLO los de hoy (no los de agenda)
-  set('dash-total', clientesHoy.length);
-  set('dash-pendientes', clientesHoy.filter(c => c.status === 'Pendiente').length);
-  set('dash-entregados', clientesHoy.filter(c => c.status === 'Entregado').length);
-  set('dash-empresa', clientesHoy.filter(c => c.status === 'Empresa').length);
-  set('dash-fallidos', clientesHoy.filter(c => c.status === 'Fallido').length);
-  set('dash-reprogramados', clientesHoy.filter(c => c.status === 'Reprogramado').length);
-  const cobrado = clientesHoy.filter(c => c.status === 'Entregado').reduce((a, c) => a + parseFloat(c.cobrar || 0), 0);
-  const pendiente = clientesHoy.filter(c => ['Pendiente','Empresa','Reprogramado','No contesta'].includes(c.status)).reduce((a, c) => a + parseFloat(c.cobrar || 0), 0);
+  // state.clients ahora SOLO contiene clientes de la ruta de hoy + manuales
+  // Los reprog están SEPARADOS en state.reprogClients (solo para agenda)
+  set('dash-total', clients.length);
+  set('dash-pendientes', clients.filter(c => c.status === 'Pendiente').length);
+  set('dash-entregados', clients.filter(c => c.status === 'Entregado').length);
+  set('dash-empresa', clients.filter(c => c.status === 'Empresa').length);
+  set('dash-fallidos', clients.filter(c => c.status === 'Fallido').length);
+  set('dash-reprogramados', clients.filter(c => c.status === 'Reprogramado').length);
+  const cobrado = clients.filter(c => c.status === 'Entregado').reduce((a, c) => a + parseFloat(c.cobrar || 0), 0);
+  const pendiente = clients.filter(c => ['Pendiente','Empresa','Reprogramado','No contesta'].includes(c.status)).reduce((a, c) => a + parseFloat(c.cobrar || 0), 0);
   set('dash-monto-cobrado', `S/ ${cobrado.toFixed(2)}`);
   set('dash-monto-pendiente', `S/ ${pendiente.toFixed(2)}`);
 
   // Si hay clientes en agenda, mostrar aviso discreto
-  if(clientesAgenda.length > 0){
+  var clientesAgenda = (state.reprogClients || []).length;
+  if(clientesAgenda > 0){
     var agendaAviso = document.getElementById('dash-agenda-aviso');
     if(!agendaAviso){
       var card = document.getElementById('resumen-dia-card');
       if(card){
         agendaAviso = document.createElement('div');
         agendaAviso.id = 'dash-agenda-aviso';
-        agendaAviso.style.cssText = 'margin-top:8px;padding:8px 10px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:8px;font-size:0.7rem;color:#a78bfa;text-align:center';
+        agendaAviso.style.cssText = 'margin-top:8px;padding:8px 10px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:8px;font-size:0.7rem;color:#a78bfa;text-align:center;cursor:pointer';
+        agendaAviso.onclick = function(){ if(typeof abrirAgendaReprog === 'function') abrirAgendaReprog(); };
         card.appendChild(agendaAviso);
       }
     }
     if(agendaAviso){
-      agendaAviso.textContent = '📋 ' + clientesAgenda.length + ' cliente(s) en agenda de reprogramados/fallidos (no incluidos arriba)';
+      agendaAviso.textContent = '📋 ' + clientesAgenda + ' cliente(s) en agenda de reprogramados → toca para ver';
     }
   }
 }
@@ -4804,9 +4797,13 @@ window.syncRiderTrack = function(silent) {
       });
     });
 
-    // 3) Combinar: clientes de ruta + reprogramados + manuales (_ctOnly)
+    // 3) Combinar: SOLO clientes de ruta + manuales (_ctOnly)
+    //    Los reprog van SEPARADOS en state.reprogClients (solo para agenda)
     var ctOnly = state.clients.filter(function(c) { return c._ctOnly === true; });
-    state.clients = rtClients.concat(reprogClients).concat(ctOnly);
+    state.clients = rtClients.concat(ctOnly);
+    
+    // Guardar reprog SEPARADAMENTE (no en state.clients)
+    state.reprogClients = reprogClients;
 
     // Guardar timestamp del último sync para detectar cambios futuros
     _ctLastRtData = localStorage.getItem('urRoute') || '{}';
@@ -6951,10 +6948,8 @@ var CT_ESTADOS_CONFIG = {
 };
 
 window.abrirAgendaReprog = function(){
-  // Ahora la agenda muestra TODOS los estados no entregados (no solo "reprogramado")
-  var reprog = (state.clients||[]).filter(function(c){
-    return CT_ESTADOS_AGENDA.indexOf(c.status || '') !== -1;
-  });
+  // Ahora la agenda lee de state.reprogClients (SEPARADO de state.clients)
+  var reprog = state.reprogClients || [];
 
   var prev = document.getElementById('agenda-reprog-panel');
   if(prev){ prev.remove(); document.body.style.overflow=''; return; }
@@ -7062,11 +7057,8 @@ window.abrirAgendaReprog = function(){
 (function verificarReprogHoy(){
   setTimeout(function(){
     var hoy = new Date().toLocaleDateString('es-PE');
-    var reprogHoy = (state.clients||[]).filter(function(c){
-      // Cualquier estado de agenda con fecha de hoy
-      if(CT_ESTADOS_AGENDA.indexOf(c.status || '') === -1) return false;
+    var reprogHoy = (state.reprogClients || []).filter(function(c){
       var f = c.reprogFecha || '';
-      // Normalizar
       if(/^\d{4}-\d{2}-\d{2}$/.test(f)){
         var partes = f.split('-');
         f = partes[2]+'/'+partes[1]+'/'+partes[0];
