@@ -1316,7 +1316,10 @@
       <!-- 🎨 THEME STUDIO -->
       <div class="card" style="margin-top: 14px;">
         <div class="modal-title" style="font-size: 0.95rem;">🎨 Theme Studio</div>
-        <p style="font-size:0.72rem;color:var(--text-secondary);margin-bottom:12px">Personaliza los colores de ClienteTrack. Los cambios se guardan automáticamente y se sincronizan con la nube.</p>
+        <p style="font-size:0.72rem;color:var(--text-secondary);margin-bottom:12px">Personaliza los colores y tamaño de texto de ClienteTrack. Los cambios se guardan automáticamente y se sincronizan con la nube.</p>
+        <div style="font-size:0.65rem;color:var(--text-secondary);margin-bottom:10px;padding:6px 8px;background:var(--input-bg);border-radius:6px;text-align:center">
+          💡 Para cambiar entre modo claro/oscuro, usa el slider ☀️/🌙 de la barra superior
+        </div>
 
         <div style="margin-bottom:12px">
           <label style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;display:block;margin-bottom:6px">🎨 Color de acento</label>
@@ -1336,14 +1339,6 @@
         </div>
 
         <div style="margin-bottom:12px">
-          <label style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;display:block;margin-bottom:6px">🌙 Modo</label>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-            <button onclick="ctThemeSetMode('dark')" id="ct-theme-btn-dark" style="padding:10px;background:var(--input-bg);border:2px solid var(--border-color);border-radius:10px;color:var(--text-primary);font-weight:700;font-size:0.78rem;cursor:pointer;font-family:inherit">🌙 Oscuro</button>
-            <button onclick="ctThemeSetMode('light')" id="ct-theme-btn-light" style="padding:10px;background:var(--input-bg);border:2px solid var(--border-color);border-radius:10px;color:var(--text-primary);font-weight:700;font-size:0.78rem;cursor:pointer;font-family:inherit">☀️ Claro</button>
-          </div>
-        </div>
-
-        <div style="margin-bottom:12px">
           <label style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;display:block;margin-bottom:6px">📏 Tamaño de texto</label>
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:0.65rem;color:var(--text-secondary)">A</span>
@@ -1353,7 +1348,7 @@
           <div style="font-size:0.65rem;color:var(--text-secondary);text-align:center;margin-top:4px" id="ct-theme-font-label">100%</div>
         </div>
 
-        <button onclick="ctThemeReset()" style="width:100%;padding:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;color:#ef4444;font-weight:700;font-size:0.78rem;cursor:pointer;font-family:inherit">↩️ Restablecer tema por defecto</button>
+        <button onclick="ctThemeReset()" style="width:100%;padding:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;color:#ef4444;font-weight:700;font-size:0.78rem;cursor:pointer;font-family:inherit">↩️ Restablecer colores por defecto</button>
       </div>
 
       <!-- 🌐 MODO OFFLINE -->
@@ -3658,15 +3653,8 @@ function _ctThemeApply(){
     var customColor = document.getElementById('ct-theme-custom-color');
     if(customColor) customColor.value = ts.accent;
   }
-  // Modo
-  if(ts.mode){
-    if(typeof applyTheme === 'function'){
-      applyTheme(ts.mode);
-    }
-    var slider = document.getElementById('theme-slider');
-    if(slider) slider.value = ts.mode === 'light' ? 1 : 0;
-    _ctThemeUpdateModeButtons();
-  }
+  // NOTA: El modo (claro/oscuro) NO se controla desde aquí — solo desde el slider del topbar
+  // para evitar conflictos. state.theme lo controla applyTheme() original.
   // Tamaño de fuente
   if(ts.fontSize){
     document.documentElement.style.setProperty('--ct-font-scale', (ts.fontSize / 100));
@@ -3702,16 +3690,13 @@ window.ctThemeCustomColor = function(color){
 };
 
 window.ctThemeSetMode = function(mode){
-  state.themeStudio = state.themeStudio || {};
-  state.themeStudio.mode = mode;
-  state.theme = mode;
-  saveState();
+  // DEPRECATED: El modo claro/oscuro ahora se controla solo desde el slider del topbar
+  // para evitar conflictos. Esta función se mantiene por compatibilidad pero redirige a applyTheme.
   if(typeof applyTheme === 'function'){
     applyTheme(mode);
+    var slider = document.getElementById('theme-slider');
+    if(slider) slider.value = mode === 'light' ? 1 : 0;
   }
-  var slider = document.getElementById('theme-slider');
-  if(slider) slider.value = mode === 'light' ? 1 : 0;
-  _ctThemeUpdateModeButtons();
   showToast(mode === 'light' ? '☀️ Modo claro' : '🌙 Modo oscuro');
 };
 
@@ -3750,15 +3735,14 @@ window.ctThemeSetFontSize = function(size){
 };
 
 window.ctThemeReset = function(){
-  if(!confirm('¿Restablecer tema a valores por defecto?')) return;
-  state.themeStudio = { accent: '', accentDark: '', mode: 'dark', fontSize: 100 };
+  if(!confirm('¿Restablecer colores y tamaño de texto a valores por defecto? El modo claro/oscuro no se verá afectado.')) return;
+  state.themeStudio = { accent: '', accentDark: '', mode: state.theme || 'dark', fontSize: 100 };
   saveState();
   // Limpiar estilos aplicados
   document.documentElement.style.removeProperty('--accent');
   document.documentElement.style.removeProperty('--accent-dark');
   document.body.style.fontSize = '';
-  // Recargar para aplicar estilos por defecto
-  showToast('✅ Tema restablecido');
+  showToast('✅ Colores restablecidos');
   setTimeout(function(){ location.reload(); }, 800);
 };
 
@@ -4047,16 +4031,45 @@ function renderDashboard() {
   const clients = state.clients || [];
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   renderResumen();
-  set('dash-total', clients.length);
-  set('dash-pendientes', clients.filter(c => c.status === 'Pendiente').length);
-  set('dash-entregados', clients.filter(c => c.status === 'Entregado').length);
-  set('dash-empresa', clients.filter(c => c.status === 'Empresa').length);
-  set('dash-fallidos', clients.filter(c => c.status === 'Fallido').length);
-  set('dash-reprogramados', clients.filter(c => c.status === 'Reprogramado').length);
-  const cobrado = clients.filter(c => c.status === 'Entregado').reduce((a, c) => a + parseFloat(c.cobrar || 0), 0);
-  const pendiente = clients.filter(c => ['Pendiente','Empresa','Reprogramado','No contesta'].includes(c.status)).reduce((a, c) => a + parseFloat(c.cobrar || 0), 0);
+
+  // Diferenciar clientes en RUTA DE HOY vs clientes en AGENDA (reprogramados/fallidos de días anteriores)
+  // Los de ruta tienen _origen === 'ruta' o no tienen _origen (manuales)
+  // Los de agenda tienen _origen === 'reprog'
+  var clientesHoy = clients.filter(function(c){
+    return c._origen !== 'reprog';  // Excluir los que vinieron de la biblioteca de reprog
+  });
+  var clientesAgenda = clients.filter(function(c){
+    return c._origen === 'reprog';
+  });
+
+  // El dashboard muestra SOLO los de hoy (no los de agenda)
+  set('dash-total', clientesHoy.length);
+  set('dash-pendientes', clientesHoy.filter(c => c.status === 'Pendiente').length);
+  set('dash-entregados', clientesHoy.filter(c => c.status === 'Entregado').length);
+  set('dash-empresa', clientesHoy.filter(c => c.status === 'Empresa').length);
+  set('dash-fallidos', clientesHoy.filter(c => c.status === 'Fallido').length);
+  set('dash-reprogramados', clientesHoy.filter(c => c.status === 'Reprogramado').length);
+  const cobrado = clientesHoy.filter(c => c.status === 'Entregado').reduce((a, c) => a + parseFloat(c.cobrar || 0), 0);
+  const pendiente = clientesHoy.filter(c => ['Pendiente','Empresa','Reprogramado','No contesta'].includes(c.status)).reduce((a, c) => a + parseFloat(c.cobrar || 0), 0);
   set('dash-monto-cobrado', `S/ ${cobrado.toFixed(2)}`);
   set('dash-monto-pendiente', `S/ ${pendiente.toFixed(2)}`);
+
+  // Si hay clientes en agenda, mostrar aviso discreto
+  if(clientesAgenda.length > 0){
+    var agendaAviso = document.getElementById('dash-agenda-aviso');
+    if(!agendaAviso){
+      var card = document.getElementById('resumen-dia-card');
+      if(card){
+        agendaAviso = document.createElement('div');
+        agendaAviso.id = 'dash-agenda-aviso';
+        agendaAviso.style.cssText = 'margin-top:8px;padding:8px 10px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:8px;font-size:0.7rem;color:#a78bfa;text-align:center';
+        card.appendChild(agendaAviso);
+      }
+    }
+    if(agendaAviso){
+      agendaAviso.textContent = '📋 ' + clientesAgenda.length + ' cliente(s) en agenda de reprogramados/fallidos (no incluidos arriba)';
+    }
+  }
 }
 
 // ║  SECCIÓN 5: CLIENTES                                  ║
