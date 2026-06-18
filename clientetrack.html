@@ -943,7 +943,7 @@
       <!-- BOTÓN SINCRONIZACIÓN RIDERTRACK (DASHBOARD VISIBLE) -->
       <div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.25);">
         <span style="font-size: 0.85rem; font-weight: 600;">Sincronización de Envíos</span>
-        <button class="btn btn-qr" onclick="syncRiderTrack()" style="padding: 8px 14px; font-size: 0.75rem;">🔄 Sincronizar RiderTrack</button>
+        <button class="btn btn-qr" onclick="syncRiderTrack(false)" style="padding: 8px 14px; font-size: 0.75rem;">🔄 Sincronizar ahora</button>
       </div>
 
       <!-- 📊 ESTADÍSTICAS HISTÓRICAS -->
@@ -1958,6 +1958,7 @@ function _ctInitFirebase(){
     return;
   }
   try {
+    // Si Firebase ya está inicializado desde RiderTrack, usar la instancia existente
     if(!firebase.apps.length){
       firebase.initializeApp({
         apiKey:'AIzaSyAzDl7gaS40JoXt9OoCPzG9FyaVPz_O34I',
@@ -1971,17 +1972,29 @@ function _ctInitFirebase(){
     _ctDb = firebase.firestore();
     _ctAuth = firebase.auth();
 
+    // Verificar si ya hay un usuario logueado (sesión persistente de RiderTrack)
+    var currentUser = _ctAuth.currentUser;
+    if(currentUser){
+      // Ya hay sesión desde RiderTrack → usar directamente
+      _ctUid = currentUser.uid;
+      _ctFbSetStatus('☁️','Conectado');
+      var uidEl0 = document.getElementById('ct-uid-display');
+      if(uidEl0) uidEl0.textContent = _ctUid.substring(0,16) + '...';
+      var toggle0 = document.getElementById('ct-autosync-toggle');
+      if(toggle0) toggle0.checked = _ctAutoSyncEnabled;
+      if(_ctAutoSyncEnabled){
+        setTimeout(function(){ _ctCargarDesdeNube(true); }, 1500);
+      }
+    }
+
     _ctAuth.onAuthStateChanged(function(user){
       if(user){
         _ctUid = user.uid;
         _ctFbSetStatus('☁️','Conectado');
-        // Mostrar UID en la UI
         var uidEl = document.getElementById('ct-uid-display');
         if(uidEl) uidEl.textContent = _ctUid.substring(0,16) + '...';
-        // Sincronizar toggle con localStorage
         var toggle = document.getElementById('ct-autosync-toggle');
         if(toggle) toggle.checked = _ctAutoSyncEnabled;
-        // Si hay auto-sync activado, cargar datos de la nube al iniciar
         if(_ctAutoSyncEnabled){
           setTimeout(function(){ _ctCargarDesdeNube(true); }, 1500);
         }
@@ -1998,14 +2011,36 @@ function _ctInitFirebase(){
           if(_ctAutoSyncEnabled){
             setTimeout(function(){ _ctCargarDesdeNube(true); }, 1500);
           }
-        }).catch(function(){
-          _ctFbSetStatus('☁️','Sin sesión');
+        }).catch(function(err){
+          console.warn('Error signInAnonymously CT:', err);
+          // Si el error es "auth/operation-not-allowed", las reglas de Firebase Auth no permiten anónimo
+          if(err && err.code === 'auth/operation-not-allowed'){
+            _ctFbSetStatus('☁️❌','Auth anónimo deshabilitado');
+          } else if(err && err.code === 'auth/network-request-failed'){
+            _ctFbSetStatus('☁️','Sin internet');
+          } else {
+            _ctFbSetStatus('☁️','Sin sesión');
+          }
         });
       }
     });
   } catch(e){
     console.warn('Error initFirebase CT:', e);
-    _ctFbSetStatus('☁️','Sin conexión');
+    // Si el error es "app/duplicate-app", Firebase ya está inicializado → no es problema
+    if(e && e.code === 'app/duplicate-app'){
+      _ctDb = firebase.firestore();
+      _ctAuth = firebase.auth();
+      _ctFbSetStatus('☁️','Conectado');
+      // Intentar obtener usuario actual
+      var cu = _ctAuth.currentUser;
+      if(cu){
+        _ctUid = cu.uid;
+        var uidEl2 = document.getElementById('ct-uid-display');
+        if(uidEl2) uidEl2.textContent = _ctUid.substring(0,16) + '...';
+      }
+    } else {
+      _ctFbSetStatus('☁️❌','Error: ' + (e.message || 'desconocido'));
+    }
   }
 }
 
@@ -4760,6 +4795,9 @@ window.syncRiderTrack = function(silent) {
     var ctOnly = state.clients.filter(function(c) { return c._ctOnly === true; });
     state.clients = rtClients.concat(reprogClients).concat(ctOnly);
 
+    // Guardar timestamp del último sync para detectar cambios futuros
+    _ctLastRtData = localStorage.getItem('urRoute') || '{}';
+
     saveState(); renderDashboard(); renderClients();
     var msg = 'Sincronizado: ' + rtClients.length + ' en ruta';
     if(reprogClients.length > 0) msg += ' · ' + reprogClients.length + ' en agenda';
@@ -7333,12 +7371,42 @@ document.addEventListener('DOMContentLoaded', function() {
   // Auto-sync con RiderTrack al cargar
   syncRiderTrack(true);
 
-  // Escuchar cambios de RiderTrack en tiempo real
+  // Escuchar cambios de RiderTrack en tiempo real (otras pestañas)
   window.addEventListener('storage', function(e) {
     if (e.key === 'urRoute') {
       syncRiderTrack(true);
     }
   });
+
+  // ⭐ FORZAR sincronización al volver a ClienteTrack (botón atrás, o navegar desde RiderTrack)
+  // El evento 'storage' no se dispara en la misma ventana, así que necesitamos esto
+  window.addEventListener('pageshow', function(event) {
+    // Se dispara al cargar la página Y al volver con el botón atrás (BFCache)
+    if (event.persisted) {
+      // La página viene del BFCache (botón atrás) → forzar sync
+      syncRiderTrack(true);
+    } else {
+      // Carga normal → verificar si los datos cambiaron
+      var rt = localStorage.getItem('urRoute') || '{}';
+      if(rt !== _ctLastRtData){
+        syncRiderTrack(true);
+      }
+    }
+  });
+
+  // También escuchar 'visibilitychange' (cuando el usuario vuelve a la pestaña)
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+      // Usuario volvió a la pestaña → sincronizar
+      var rt = localStorage.getItem('urRoute') || '{}';
+      if(rt !== _ctLastRtData){
+        syncRiderTrack(true);
+      }
+    }
+  });
+
+  // Variable para trackear el último estado de urRoute leído
+  var _ctLastRtData = localStorage.getItem('urRoute') || '{}';
 
   // ── Botón retroceder físico en Capacitor ──
   if(typeof window.Capacitor !== 'undefined' &&
