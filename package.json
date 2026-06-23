@@ -1,6 +1,6 @@
 {
   "name": "ridertrack-app",
-  "version": "1.0.0",
+  "version": "5.2.1",
   "description": "RiderTrack - Aplicación de Reparto Profesional",
   "main": "index.js",
   "scripts": {
