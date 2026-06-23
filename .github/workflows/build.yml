@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -44,6 +46,17 @@ jobs:
           [ -f navegar.html ] && cp navegar.html www/navegar.html || true
           find . -maxdepth 1 \( -name "*.png" -o -name "*.jpg" -o -name "*.webp" -o -name "*.svg" \) ! -path "./.git/*" ! -name "icon-*" -exec cp {} www/ \; 2>/dev/null || true
 
+      - name: 🏷️ Actualizar versión en capacitor.config.json
+        run: |
+          VERSION=$(node -p "require('./package.json').version || '1.0.0'")
+          if [ -f capacitor.config.json ]; then
+            node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync('capacitor.config.json'));c.version='${VERSION}';fs.writeFileSync('capacitor.config.json',JSON.stringify(c,null,2))"
+            echo "✅ capacitor.config.json actualizado a v${VERSION}"
+          else
+            echo '{"appId":"com.ridertrack.app","appName":"RiderTrack","webDir":"www","version":"'${VERSION}'"}' > capacitor.config.json
+            echo "✅ capacitor.config.json creado con v${VERSION}"
+          fi
+
       - name: Initialize Capacitor
         run: npx cap init RiderTrack com.ridertrack.app --web-dir www
 
@@ -52,6 +65,19 @@ jobs:
 
       - name: Add Android platform
         run: npx cap add android
+
+      - name: 🏷️ Actualizar versionCode y versionName en build.gradle
+        run: |
+          VERSION=$(node -p "require('./package.json').version || '1.0.0'")
+          # Generar versionCode numérico (ej: 5.5.1 → 50501)
+          VERSION_CODE=$(echo "$VERSION" | awk -F. '{print (($1 * 10000) + ($2 * 100) + $3)}')
+          [ -z "$VERSION_CODE" ] || [ "$VERSION_CODE" -eq 0 ] && VERSION_CODE=1
+          GRADLE="android/app/build.gradle"
+          if [ -f "$GRADLE" ]; then
+            sed -i "s/versionCode [0-9]*/versionCode ${VERSION_CODE}/" "$GRADLE"
+            sed -i "s/versionName \"[^\"]*\"/versionName \"${VERSION}\"/" "$GRADLE"
+            echo "✅ build.gradle actualizado: versionCode=${VERSION_CODE}, versionName=${VERSION}"
+          fi
 
       - name: Copy web assets to Android
         run: npx cap copy android
@@ -159,15 +185,21 @@ jobs:
             --out RiderTrack-v1.0.apk \
             RiderTrack-aligned.apk
 
+      - name: 🏷️ Rename APK with version
+        run: |
+          VERSION=$(node -p "require('./package.json').version || '1.0.0'")
+          mv RiderTrack-v1.0.apk RiderTrack-v${VERSION}.apk
+          echo "✅ APK renombrado a RiderTrack-v${VERSION}.apk"
+
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
           name: RiderTrack-APK
-          path: RiderTrack-v1.0.apk
+          path: RiderTrack-v*.apk
           retention-days: 30
 
       - name: Show APK info
-        run: du -sh RiderTrack-v1.0.apk
+        run: du -sh RiderTrack-v*.apk
 
       - name: 🏷️ Generate version tag
         id: version
@@ -175,10 +207,20 @@ jobs:
           VERSION=$(node -p "require('./package.json').version || '1.0.0'")
           CLEAN_VERSION=$(echo "$VERSION" | sed 's/^v//')
           TAG="v${CLEAN_VERSION}-$(date +'%Y%m%d%H%M')"
-          NAME="Build $(date +'%d-%b-%Y %H:%M')"
+          NAME="v${CLEAN_VERSION} · $(date +'%d-%b-%Y %H:%M')"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "version=$CLEAN_VERSION" >> $GITHUB_OUTPUT
           echo "date=$(date +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+      - name: 📝 Capturar notas de versión
+        id: notes
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=format:"%B")
+          COMMIT_MSG_ESCAPED=$(echo "$COMMIT_MSG" | sed "s/'/''/g")
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMIT_MSG_ESCAPED" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -186,21 +228,30 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.name }}
           body: |
-            ## 📦 RiderTrack APK generado automáticamente
+            ## 🛵 RiderTrack ${{ steps.version.outputs.version }}
 
             **Fecha:** ${{ steps.version.outputs.date }}
-            **Versión:** ${{ steps.version.outputs.tag }}
+            **Versión:** ${{ steps.version.outputs.version }}
 
-            ### Cómo instalar
+            ---
+
+            ### 📋 Novedades de esta versión
+
+            ${{ steps.notes.outputs.notes }}
+
+            ---
+
+            ### 📲 Cómo instalar
+
             1. Descargá el archivo `.apk`
             2. En Android, abrí el archivo
             3. Si pide permisos de "orígenes desconocidos", aceptá
             4. Instalá y abrí la app
 
             ---
-            Generado por GitHub Actions · TrackVerse Hub
+            Generado automáticamente por GitHub Actions · TrackVerse Hub
           files: |
-            RiderTrack-v1.0.apk
+            RiderTrack-v*.apk
           prerelease: false
           make_latest: true
         env:
