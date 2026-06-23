@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -111,10 +114,6 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      # ── KEYSTORE PERSISTENTE ──────────────────────────────────
-      # Usa el keystore guardado en GitHub Secrets.
-      # Si no existe todavía, lo genera y muestra el base64
-      # para que lo guardes como secret KEYSTORE_BASE64.
       - name: Restore or generate keystore
         run: |
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
@@ -169,3 +168,40 @@ jobs:
 
       - name: Show APK info
         run: du -sh RiderTrack-v1.0.apk
+
+      - name: 🏷️ Generate version tag
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version || '1.0.0'")
+          CLEAN_VERSION=$(echo "$VERSION" | sed 's/^v//')
+          TAG="v${CLEAN_VERSION}-$(date +'%Y%m%d%H%M')"
+          NAME="Build $(date +'%d-%b-%Y %H:%M')"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "date=$(date +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+      - name: 🚀 Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.name }}
+          body: |
+            ## 📦 RiderTrack APK generado automáticamente
+
+            **Fecha:** ${{ steps.version.outputs.date }}
+            **Versión:** ${{ steps.version.outputs.tag }}
+
+            ### Cómo instalar
+            1. Descargá el archivo `.apk`
+            2. En Android, abrí el archivo
+            3. Si pide permisos de "orígenes desconocidos", aceptá
+            4. Instalá y abrí la app
+
+            ---
+            Generado por GitHub Actions · TrackVerse Hub
+          files: |
+            RiderTrack-v1.0.apk
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
