@@ -144,8 +144,11 @@ jobs:
             printf '<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n    <background android:drawable="@color/ic_launcher_background"/>\n    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>\n</adaptive-icon>' > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
             cp android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
             
-            # Color de fondo del adaptive icon (reescribir el archivo completo)
+            # Color de fondo del adaptive icon
+            # Borrar el de Capacitor primero para evitar duplicados
             mkdir -p android/app/src/main/res/values
+            rm -f android/app/src/main/res/values/ic_launcher_background.xml
+            rm -f android/app/src/main/res/values/colors.xml
             printf '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#0D0D1A</color>\n</resources>' > android/app/src/main/res/values/colors.xml
             
             # Icono de notificación (HD)
