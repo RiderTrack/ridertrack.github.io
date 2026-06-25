@@ -69,7 +69,6 @@ jobs:
       - name: 🏷️ Actualizar versionCode y versionName en build.gradle
         run: |
           VERSION=$(node -p "require('./package.json').version || '1.0.0'")
-          # Generar versionCode numérico (ej: 5.5.1 → 50501)
           VERSION_CODE=$(echo "$VERSION" | awk -F. '{print (($1 * 10000) + ($2 * 100) + $3)}')
           [ -z "$VERSION_CODE" ] || [ "$VERSION_CODE" -eq 0 ] && VERSION_CODE=1
           GRADLE="android/app/build.gradle"
@@ -99,9 +98,14 @@ jobs:
           GRADLE="android/app/build.gradle"
           sed -i '/dependencies {/a\    implementation "com.google.android.gms:play-services-auth:20.7.0"' "$GRADLE"
 
-      - name: Replace all app icons
+      - name: 🔔 Generar iconos HD (mejorado)
         run: |
           if [ -f "icon.png" ]; then
+            echo "📐 Tamaño del icon.png original:"
+            identify icon.png
+            
+            # Generar iconos con filtro Lanczos (mejor calidad)
+            # Tamaños estándar de Android para ic_launcher
             for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
               case $density in
                 mdpi)    size=48  ;;
@@ -112,14 +116,47 @@ jobs:
               esac
               dir="android/app/src/main/res/mipmap-${density}"
               mkdir -p "$dir"
-              convert icon.png -resize ${size}x${size} "${dir}/ic_launcher.png"
-              convert icon.png -resize ${size}x${size} "${dir}/ic_launcher_round.png"
-              convert icon.png -resize ${size}x${size} "${dir}/ic_launcher_foreground.png"
+              
+              # Icono principal (nítido con Lanczos)
+              convert icon.png -resize ${size}x${size}\! -filter Lanczos -quality 100 -unsharp 0x0.5 "${dir}/ic_launcher.png"
+              convert icon.png -resize ${size}x${size}\! -filter Lanczos -quality 100 -unsharp 0x0.5 "${dir}/ic_launcher_round.png"
+              echo "  ✅ ${density}: ${size}x${size}"
             done
+            
+            # Foreground para adaptive icons (Android 8+)
+            # El foreground debe ser 108dp (NO el mismo tamaño que el launcher)
+            # safe zone es 66dp centrado, el resto es padding
+            for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+              case $density in
+                mdpi)    fg=108 ;;
+                hdpi)    fg=162 ;;
+                xhdpi)   fg=216 ;;
+                xxhdpi)  fg=324 ;;
+                xxxhdpi) fg=432 ;;
+              esac
+              dir="android/app/src/main/res/mipmap-${density}"
+              # Crear foreground con padding transparente (icono centrado al 70%)
+              convert icon.png -resize $((fg*70/100))x$((fg*70/100)) -filter Lanczos -quality 100 -unsharp 0x0.5 -gravity center -background none -extent ${fg}x${fg} "${dir}/ic_launcher_foreground.png"
+            done
+            
+            # Adaptive icons XML (Android 8+) - SIN indentación antes de <?xml
             mkdir -p android/app/src/main/res/mipmap-anydpi-v26
-            echo '<?xml version="1.0" encoding="utf-8"?><adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@android:color/white"/><foreground android:drawable="@mipmap/ic_launcher_foreground"/></adaptive-icon>' > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+            printf '<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n    <background android:drawable="@color/ic_launcher_background"/>\n    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>\n</adaptive-icon>' > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
             cp android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
-            echo "Icons replaced"
+            
+            # Color de fondo del adaptive icon (reescribir el archivo completo)
+            mkdir -p android/app/src/main/res/values
+            printf '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#0D0D1A</color>\n</resources>' > android/app/src/main/res/values/colors.xml
+            
+            # Icono de notificación (HD)
+            mkdir -p android/app/src/main/res/drawable
+            convert icon.png -resize 96x96\! -filter Lanczos -quality 100 -unsharp 0x0.5 android/app/src/main/res/drawable/ic_stat_icon_config_sample.png
+            # Versión blanca para status bar
+            convert icon.png -resize 24x24\! -filter Lanczos -colorspace Gray -negate -fill white -tint 100 android/app/src/main/res/drawable/ic_stat_icon_config_sample_white.png
+            
+            echo "✅ Todos los iconos generados en HD con unsharp mask"
+          else
+            echo "⚠️ No hay icon.png, usando iconos default"
           fi
 
       - name: Update AndroidManifest permissions
