@@ -2,7 +2,7 @@ name: Build TrackVerse APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
@@ -32,46 +32,60 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install dependencies (incluye plugins Capacitor del package.json)
+      - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Prepare www folder
+      # ── Instalar plugins de Capacitor para guardar/compartir archivos ──
+      # Sin estos, el botón de Excel no puede guardar en el celular desde el APK
+      - name: Install Capacitor plugins
+        run: |
+          npm install @capacitor/filesystem@5 --legacy-peer-deps
+          npm install @capacitor/share@5 --legacy-peer-deps
+          echo "✅ Plugins instalados: filesystem + share"
+
+      - name: Prepare Web Assets
         run: |
           mkdir -p www
-          cp index.html www/index.html
-          [ -f clientetrack.html ] && cp clientetrack.html www/clientetrack.html || true
-          [ -f clientes.html ] && cp clientes.html www/clientes.html || true
-          [ -f pedidos.html ] && cp pedidos.html www/pedidos.html || true
-          [ -f plantillas.html ] && cp plantillas.html www/plantillas.html || true
-          [ -f configuracion.html ] && cp configuracion.html www/configuracion.html || true
-          [ -f catalogo.html ] && cp catalogo.html www/catalogo.html || true
-          [ -f estadisticas.html ] && cp estadisticas.html www/estadisticas.html || true
+          cp index.html www/
+          cp clientetrack.html www/
+          cp clientes.html www/
+          cp pedidos.html www/
+          cp plantillas.html www/
+          cp configuracion.html www/
+          cp catalogo.html www/
+          cp estadisticas.html www/
 
-      - name: Initialize Capacitor
-        run: npx cap init TrackVerse com.ridertrack.clientetrack --web-dir www
-
-      - name: Remove existing android folder if present
-        run: rm -rf android
-
-      - name: Add Android platform
+      - name: Add Android Platform
         run: npx cap add android
 
-      - name: Copy web assets to Android
-        run: npx cap copy android
+      - name: Add Android Permissions
+        run: |
+          sed -i 's|<uses-permission android:name="android.permission.INTERNET" />|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />|' android/app/src/main/AndroidManifest.xml
+          grep "uses-permission" android/app/src/main/AndroidManifest.xml
 
-      - name: Sync Capacitor plugins (filesystem, share, etc.)
-        run: npx cap sync android
-
-      - name: Configure strings.xml
+      - name: Set App Name to TrackVerse
         run: |
           mkdir -p android/app/src/main/res/values
-          echo '<?xml version="1.0" encoding="utf-8"?><resources><string name="app_name">TrackVerse</string><string name="title_activity_main">TrackVerse</string><string name="package_name">com.ridertrack.clientetrack</string><string name="custom_url_scheme">com.ridertrack.clientetrack</string></resources>' > android/app/src/main/res/values/strings.xml
-          echo "✅ strings.xml creado"
+          STRINGS=android/app/src/main/res/values/strings.xml
+          if [ -f "$STRINGS" ]; then
+            sed -i 's|<string name="app_name">[^<]*</string>|<string name="app_name">TrackVerse</string>|' "$STRINGS"
+            grep -q 'name="app_name"' "$STRINGS" || \
+              sed -i 's|</resources>|    <string name="app_name">TrackVerse</string>\n</resources>|' "$STRINGS"
+            grep -q 'title_activity_main' "$STRINGS" || \
+              sed -i 's|</resources>|    <string name="title_activity_main">TrackVerse</string>\n</resources>|' "$STRINGS"
+          else
+            cat > "$STRINGS" << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">TrackVerse</string>
+              <string name="title_activity_main">TrackVerse</string>
+          </resources>
+          EOF
+          fi
+          echo "✅ App name: TrackVerse"
 
-      - name: Update AndroidManifest permissions (incluye storage para descargas)
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <application|' "$MANIFEST"
+      - name: Sync Web Assets
+        run: npx cap sync android
 
       - name: Set Gradle permissions
         run: chmod +x android/gradlew
@@ -80,13 +94,15 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
+      # ── Solo UN secret necesario: KEYSTORE_BASE64 (igual que en RiderTrack) ──
+      # Alias y password van escritos aca mismo, fijos, igual que RiderTrack.
       - name: Restore or generate keystore
         run: |
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "✅ Usando keystore guardado en Secrets"
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
           else
-            echo "⚠️ No hay KEYSTORE_BASE64 — generando nuevo keystore"
+            echo "⚠️ No hay KEYSTORE_BASE64 — generando uno nuevo"
             keytool -genkeypair \
               -keystore release.keystore \
               -alias trackverse \
@@ -106,14 +122,12 @@ jobs:
             echo "══════════════════════════════════════════════"
           fi
 
-      - name: Show SHA-1
-        run: keytool -list -v -keystore release.keystore -alias trackverse -storepass trackverse123 | grep "SHA1:"
-
       - name: Zipalign APK
         run: |
           ZIPALIGN=$(find $ANDROID_SDK_ROOT -name "zipalign" | head -1)
           $ZIPALIGN -v -p 4 android/app/build/outputs/apk/debug/app-debug.apk TrackVerse-aligned.apk
 
+      # ── Alias y password fijos aca (igual que RiderTrack) — NO son secrets ──
       - name: Sign APK
         run: |
           APKSIGNER=$(find $ANDROID_SDK_ROOT -name "apksigner" | head -1)
