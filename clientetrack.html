@@ -4448,7 +4448,9 @@ window.aplicarTagsRuta = function(texto, client){
     var totalRuta = rutaClientes.length;
     var miPosicion = client.num || '';
     var rutaLista = rutaClientes.map(function(c){
-      return c.num + '. ' + (c.name || 'Cliente');
+      var linea = c.num + '. ' + (c.district || c.name || 'Cliente');
+      if (c.num === client.num) linea += ' ← 📍 *TÚ ESTÁS AQUÍ*';
+      return linea;
     }).join('\n');
     return contenido
       .replace(/\{total_ruta\}/g, String(totalRuta))
