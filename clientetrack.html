@@ -4422,6 +4422,41 @@ window.abrirQRCliente = id => {
   }
 };
 
+// ═══════════════════════════════════════════════════════════════
+// 🗺️ TAGS DE RUTA (16/07/2026) — {total_ruta}, {ruta_lista},
+// {mi_posicion} y el bloque condicional {sin_ruta}...{/sin_ruta}.
+//
+// Igual que el motor del bot (que lee ruta_activa en vivo), pero
+// calculado acá con los clientes ya sincronizados desde RiderTrack
+// (state.clients con _origen === 'ruta'). Si el cliente NO es parte
+// de la ruta activa de hoy (cliente manual, agenda, reprogramado),
+// el bloque {sin_ruta}...{/sin_ruta} se elimina completo — no se
+// manda info de ruta a quien no corresponde.
+// ═══════════════════════════════════════════════════════════════
+window.aplicarTagsRuta = function(texto, client){
+  texto = String(texto || '');
+  if (!/\{sin_ruta\}/.test(texto)) return texto; // ni siquiera tiene el bloque, no hacer nada
+
+  var rutaClientes = (state.clients || [])
+    .filter(function(c){ return c._origen === 'ruta'; })
+    .sort(function(a,b){ return (a.num||0) - (b.num||0); });
+
+  var esDeRutaHoy = !!(client && client._origen === 'ruta' && client.num > 0);
+
+  return texto.replace(/\{sin_ruta\}([\s\S]*?)\{\/sin_ruta\}/g, function(_, contenido){
+    if (!esDeRutaHoy) return '';
+    var totalRuta = rutaClientes.length;
+    var miPosicion = client.num || '';
+    var rutaLista = rutaClientes.map(function(c){
+      return c.num + '. ' + (c.name || 'Cliente');
+    }).join('\n');
+    return contenido
+      .replace(/\{total_ruta\}/g, String(totalRuta))
+      .replace(/\{mi_posicion\}/g, String(miPosicion))
+      .replace(/\{ruta_lista\}/g, rutaLista);
+  });
+};
+
 // Aplicar plantilla seleccionada al mensaje del QR
 window.aplicarPlantillaQR = function(id){
   var sel = document.getElementById('qr-tpl-'+id);
@@ -4431,6 +4466,7 @@ window.aplicarPlantillaQR = function(id){
   var tpl = (state.templates||[]).find(function(t){ return String(t.id)===String(sel.value); });
   if(!tpl) return;
   var texto = tpl.text || tpl.content || tpl.texto || tpl.message || '';
+  texto = aplicarTagsRuta(texto, client);
   // Reemplazar tags
   texto = texto
     .replace(/\{nombre\}/gi, client.name||'')
@@ -4972,6 +5008,7 @@ window.processNextInQueue = () => {
   const minLleg = parseInt(qcfg.minLlegada || 20);
   const horaLleg = new Date(now.getTime() + minLleg * 60000);
   const horaLlegStr = horaLleg.toLocaleTimeString('es-PE', {hour:'2-digit',minute:'2-digit',hour12:false});
+  msg = aplicarTagsRuta(msg, client);
   msg = msg
     .replace(/\{nombre\}/g,           (client.name||'').split(' ')[0])
     .replace(/\{producto\}/g,          client.product||'')
@@ -7182,6 +7219,7 @@ window.cargarPlantillaEmpresa = function() {
   var cfg = state.config || {};
   var msg = tpl.text;
   if (client) {
+    msg = aplicarTagsRuta(msg, client);
     msg = msg
       .replace(/\{nombre\}/g,        (client.name||'').split(' ')[0])
       .replace(/\{nombre_completo\}/g, client.name||'')
@@ -7277,6 +7315,7 @@ window.cargarPlantillaHora = function(id) {
   if (client) {
     var resDiv2 = document.getElementById('hora-resultado-' + id);
     var minutosLlegada = (resDiv2 && resDiv2._minutos) ? String(resDiv2._minutos) : '';
+    msg = aplicarTagsRuta(msg, client);
     msg = msg
       .replace(/\{nombre\}/g,           (client.name||'').split(' ')[0])
       .replace(/\{nombre_completo\}/g,   client.name||'')
