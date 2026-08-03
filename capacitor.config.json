@@ -4,12 +4,13 @@
   "webDir": ".",
   "server": {
     "androidScheme": "https",
-    "cleartext": true
+    "cleartext": true,
+    "hostname": "ridertrack.local"
   },
   "android": {
-    "allowMixedContent": true,
+    "allowMixedContent": false,
     "captureInput": true,
-    "webContentsDebuggingEnabled": false
+    "webContentsDebuggingEnabled": true
   },
   "plugins": {
     "Geolocation": {
