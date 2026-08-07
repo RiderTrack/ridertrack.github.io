@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "851606828420",
+    "project_id": "ridertrack-93c8a",
+    "storage_bucket": "ridertrack-93c8a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:851606828420:android:629bddcf15a783cb3e59d1",
+        "android_client_info": {
+          "package_name": "com.ridertrack.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "851606828420-rm5mumtplpctk6p4cjh44mnttlnlmbfs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyASJif8iYTU68U3CX8gnQfjDcw1ohnW820"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "851606828420-rm5mumtplpctk6p4cjh44mnttlnlmbfs.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
