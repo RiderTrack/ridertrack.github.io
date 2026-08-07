@@ -1,0 +1,298 @@
+name: Build RiderTrack APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Install imagemagick
+        run: sudo apt-get install -y imagemagick
+
+      - name: Prepare www folder
+        run: |
+          mkdir -p www
+          cp index.html www/index.html
+          [ -f clientetrack.html ] && cp clientetrack.html www/clientetrack.html || true
+          [ -f navegar.html ] && cp navegar.html www/navegar.html || true
+          find . -maxdepth 1 \( -name "*.png" -o -name "*.jpg" -o -name "*.webp" -o -name "*.svg" \) ! -path "./.git/*" ! -name "icon-*" -exec cp {} www/ \; 2>/dev/null || true
+
+      - name: 🏷️ Actualizar versión en capacitor.config.json
+        run: |
+          VERSION=$(node -p "require('./package.json').version || '1.0.0'")
+          if [ -f capacitor.config.json ]; then
+            node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync('capacitor.config.json'));c.version='${VERSION}';fs.writeFileSync('capacitor.config.json',JSON.stringify(c,null,2))"
+            echo "✅ capacitor.config.json actualizado a v${VERSION}"
+          else
+            echo '{"appId":"com.ridertrack.app","appName":"RiderTrack","webDir":"www","version":"'${VERSION}'"}' > capacitor.config.json
+            echo "✅ capacitor.config.json creado con v${VERSION}"
+          fi
+
+      - name: Initialize Capacitor
+        run: npx cap init RiderTrack com.ridertrack.app --web-dir www
+
+      - name: Remove existing android folder if present
+        run: rm -rf android
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: 🏷️ Actualizar versionCode y versionName en build.gradle
+        run: |
+          VERSION=$(node -p "require('./package.json').version || '1.0.0'")
+          VERSION_CODE=$(echo "$VERSION" | awk -F. '{print (($1 * 10000) + ($2 * 100) + $3)}')
+          [ -z "$VERSION_CODE" ] || [ "$VERSION_CODE" -eq 0 ] && VERSION_CODE=1
+          GRADLE="android/app/build.gradle"
+          if [ -f "$GRADLE" ]; then
+            sed -i "s/versionCode [0-9]*/versionCode ${VERSION_CODE}/" "$GRADLE"
+            sed -i "s/versionName \"[^\"]*\"/versionName \"${VERSION}\"/" "$GRADLE"
+            echo "✅ build.gradle actualizado: versionCode=${VERSION_CODE}, versionName=${VERSION}"
+          fi
+
+      - name: Copy web assets to Android
+        run: npx cap copy android
+
+      - name: Sync Capacitor plugins
+        run: npx cap sync android
+
+      - name: Copy google-services.json
+        run: cp google-services.json android/app/google-services.json
+
+      - name: Configure GoogleAuth plugin
+        run: |
+          mkdir -p android/app/src/main/res/values
+          echo '<?xml version="1.0" encoding="utf-8"?><resources><string name="app_name">RiderTrack</string><string name="title_activity_main">RiderTrack</string><string name="package_name">com.ridertrack.app</string><string name="custom_url_scheme">com.ridertrack.app</string><string name="server_client_id">851606828420-rm5mumtplpctk6p4cjh44mnttlnlmbfs.apps.googleusercontent.com</string></resources>' > android/app/src/main/res/values/strings.xml
+          echo "✅ strings.xml creado"
+
+      - name: Add Google Auth dependency to app build.gradle
+        run: |
+          GRADLE="android/app/build.gradle"
+          sed -i '/dependencies {/a\    implementation "com.google.android.gms:play-services-auth:20.7.0"' "$GRADLE"
+
+      - name: 🔔 Generar iconos HD (mejorado)
+        run: |
+          if [ -f "icon.png" ]; then
+            echo "📐 Tamaño del icon.png original:"
+            identify icon.png
+            
+            # Generar iconos con filtro Lanczos (mejor calidad)
+            # Tamaños estándar de Android para ic_launcher
+            for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+              case $density in
+                mdpi)    size=48  ;;
+                hdpi)    size=72  ;;
+                xhdpi)   size=96  ;;
+                xxhdpi)  size=144 ;;
+                xxxhdpi) size=192 ;;
+              esac
+              dir="android/app/src/main/res/mipmap-${density}"
+              mkdir -p "$dir"
+              
+              # Icono principal (nítido con Lanczos)
+              convert icon.png -resize ${size}x${size}\! -filter Lanczos -quality 100 -unsharp 0x0.5 "${dir}/ic_launcher.png"
+              convert icon.png -resize ${size}x${size}\! -filter Lanczos -quality 100 -unsharp 0x0.5 "${dir}/ic_launcher_round.png"
+              echo "  ✅ ${density}: ${size}x${size}"
+            done
+            
+            # Foreground para adaptive icons (Android 8+)
+            # El foreground debe ser 108dp (NO el mismo tamaño que el launcher)
+            # safe zone es 66dp centrado, el resto es padding
+            for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+              case $density in
+                mdpi)    fg=108 ;;
+                hdpi)    fg=162 ;;
+                xhdpi)   fg=216 ;;
+                xxhdpi)  fg=324 ;;
+                xxxhdpi) fg=432 ;;
+              esac
+              dir="android/app/src/main/res/mipmap-${density}"
+              # Crear foreground con padding transparente (icono centrado al 70%)
+              convert icon.png -resize $((fg*70/100))x$((fg*70/100)) -filter Lanczos -quality 100 -unsharp 0x0.5 -gravity center -background none -extent ${fg}x${fg} "${dir}/ic_launcher_foreground.png"
+            done
+            
+            # Adaptive icons XML (Android 8+) - SIN indentación antes de <?xml
+            mkdir -p android/app/src/main/res/mipmap-anydpi-v26
+            printf '<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n    <background android:drawable="@color/ic_launcher_background"/>\n    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>\n</adaptive-icon>' > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+            cp android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+            
+            # Color de fondo del adaptive icon
+            # Borrar el de Capacitor primero para evitar duplicados
+            mkdir -p android/app/src/main/res/values
+            rm -f android/app/src/main/res/values/ic_launcher_background.xml
+            rm -f android/app/src/main/res/values/colors.xml
+            printf '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#0D0D1A</color>\n</resources>' > android/app/src/main/res/values/colors.xml
+            
+            # Icono de notificación (HD)
+            mkdir -p android/app/src/main/res/drawable
+            convert icon.png -resize 96x96\! -filter Lanczos -quality 100 -unsharp 0x0.5 android/app/src/main/res/drawable/ic_stat_icon_config_sample.png
+            # Versión blanca para status bar
+            convert icon.png -resize 24x24\! -filter Lanczos -colorspace Gray -negate -fill white -tint 100 android/app/src/main/res/drawable/ic_stat_icon_config_sample_white.png
+            
+            echo "✅ Todos los iconos generados en HD con unsharp mask"
+          else
+            echo "⚠️ No hay icon.png, usando iconos default"
+          fi
+
+      - name: Update AndroidManifest permissions
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <application|' "$MANIFEST"
+
+      - name: Add Spotify deep link intent filter
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i 's|</activity>|        <intent-filter>\n                <action android:name="android.intent.action.VIEW" />\n                <category android:name="android.intent.category.DEFAULT" />\n                <category android:name="android.intent.category.BROWSABLE" />\n                <data android:scheme="ridertrack" android:host="callback" />\n            </intent-filter>\n        </activity>|' "$MANIFEST"
+          echo "✅ Deep link Spotify ridertrack://callback agregado"
+
+      - name: Set Gradle permissions
+        run: chmod +x android/gradlew
+
+      - name: Build Debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Restore or generate keystore
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "✅ Usando keystore guardado en Secrets"
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+          else
+            echo "⚠️ No hay KEYSTORE_BASE64 — generando nuevo keystore"
+            keytool -genkeypair \
+              -keystore release.keystore \
+              -alias ridertrack \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass ridertrack123 \
+              -keypass ridertrack123 \
+              -dname "CN=RiderTrack, OU=Dev, O=RiderTrack, L=Lima, S=Lima, C=PE"
+            echo ""
+            echo "══════════════════════════════════════════════"
+            echo "COPIA ESTE BASE64 Y GUARDALO EN GITHUB SECRETS"
+            echo "Nombre del secret: KEYSTORE_BASE64"
+            echo "══════════════════════════════════════════════"
+            base64 -w 0 release.keystore
+            echo ""
+            echo "══════════════════════════════════════════════"
+          fi
+
+      - name: Show SHA-1
+        run: keytool -list -v -keystore release.keystore -alias ridertrack -storepass ridertrack123 | grep "SHA1:"
+
+      - name: Zipalign APK
+        run: |
+          ZIPALIGN=$(find $ANDROID_SDK_ROOT -name "zipalign" | head -1)
+          $ZIPALIGN -v -p 4 android/app/build/outputs/apk/debug/app-debug.apk RiderTrack-aligned.apk
+
+      - name: Sign APK
+        run: |
+          APKSIGNER=$(find $ANDROID_SDK_ROOT -name "apksigner" | head -1)
+          $APKSIGNER sign \
+            --ks release.keystore \
+            --ks-key-alias ridertrack \
+            --ks-pass pass:ridertrack123 \
+            --key-pass pass:ridertrack123 \
+            --out RiderTrack-v1.0.apk \
+            RiderTrack-aligned.apk
+
+      - name: 🏷️ Rename APK with version
+        run: |
+          VERSION=$(node -p "require('./package.json').version || '1.0.0'")
+          mv RiderTrack-v1.0.apk RiderTrack-v${VERSION}.apk
+          echo "✅ APK renombrado a RiderTrack-v${VERSION}.apk"
+
+      - name: Upload signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: RiderTrack-APK
+          path: RiderTrack-v*.apk
+          retention-days: 30
+
+      - name: Show APK info
+        run: du -sh RiderTrack-v*.apk
+
+      - name: 🏷️ Generate version tag
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version || '1.0.0'")
+          CLEAN_VERSION=$(echo "$VERSION" | sed 's/^v//')
+          TAG="v${CLEAN_VERSION}-$(date +'%Y%m%d%H%M')"
+          NAME="v${CLEAN_VERSION} · $(date +'%d-%b-%Y %H:%M')"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "version=$CLEAN_VERSION" >> $GITHUB_OUTPUT
+          echo "date=$(date +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+      - name: 📝 Capturar notas de versión
+        id: notes
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=format:"%B")
+          COMMIT_MSG_ESCAPED=$(echo "$COMMIT_MSG" | sed "s/'/''/g")
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMIT_MSG_ESCAPED" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: 🚀 Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.name }}
+          body: |
+            ## 🛵 RiderTrack ${{ steps.version.outputs.version }}
+
+            **Fecha:** ${{ steps.version.outputs.date }}
+            **Versión:** ${{ steps.version.outputs.version }}
+
+            ---
+
+            ### 📋 Novedades de esta versión
+
+            ${{ steps.notes.outputs.notes }}
+
+            ---
+
+            ### 📲 Cómo instalar
+
+            1. Descargá el archivo `.apk`
+            2. En Android, abrí el archivo
+            3. Si pide permisos de "orígenes desconocidos", aceptá
+            4. Instalá y abrí la app
+
+            ---
+            Generado automáticamente por GitHub Actions · TrackVerse Hub
+          files: |
+            RiderTrack-v*.apk
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,17 @@
+name: Rename index_spotify to index
+on:
+  workflow_dispatch:
+jobs:
+  rename:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rename file
+        run: |
+          cp index_spotify.html index.html
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git add index.html
+          git rm index_spotify.html
+          git commit -m "Rename index_spotify to index"
+          git push
